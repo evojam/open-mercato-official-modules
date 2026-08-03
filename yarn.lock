@@ -6448,6 +6448,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@open-mercato/reservations@workspace:packages/reservations":
+  version: 0.0.0-use.local
+  resolution: "@open-mercato/reservations@workspace:packages/reservations"
+  dependencies:
+    "@open-mercato/shared": "npm:0.6.3-develop.3778.1.25fdb35f2e"
+    "@open-mercato/ui": "npm:0.6.3-develop.3778.1.25fdb35f2e"
+    "@types/jest": "npm:^30.0.0"
+    esbuild: "npm:^0.25.0"
+    glob: "npm:^13.0.6"
+    jest: "npm:^30.2.0"
+    ts-jest: "npm:^29.4.6"
+    typescript: "npm:^5.9.3"
+  peerDependencies:
+    "@open-mercato/shared": 0.6.3-develop.3778.1.25fdb35f2e
+    "@open-mercato/ui": 0.6.3-develop.3778.1.25fdb35f2e
+    react: ^19.0.0
+  languageName: unknown
+  linkType: soft
+
 "@open-mercato/scheduler@npm:0.6.3-develop.3778.1.25fdb35f2e":
   version: 0.6.3-develop.3778.1.25fdb35f2e
   resolution: "@open-mercato/scheduler@npm:0.6.3-develop.3778.1.25fdb35f2e"

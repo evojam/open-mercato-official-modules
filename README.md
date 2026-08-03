@@ -108,6 +108,7 @@ yarn platform:sync --check
 | Package | Description | Author |
 |---------|-------------|--------|
 | [`@open-mercato/carrier-inpost`](packages/carrier-inpost) | InPost shipping carrier — rate calculation, shipment creation, cancellation, and webhook tracking for InPost locker and courier services (Poland) | Open Mercato |
+| [`@open-mercato/reservations`](packages/reservations) | Reserve a concrete subject for a target in a time window and warn when something overlaps | [evojam](https://github.com/evojam) |
 
 ## ⚡ Installing a Module
 

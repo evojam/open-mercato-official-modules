@@ -59,7 +59,8 @@
   "peerDependencies": {
     "@open-mercato/shared": "0.6.3-develop.3778.1.25fdb35f2e",
     "@open-mercato/ui": "0.6.3-develop.3778.1.25fdb35f2e",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@open-mercato/shared": "0.6.3-develop.3778.1.25fdb35f2e",
@@ -69,7 +70,8 @@
     "glob": "^13.0.6",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "4.3.6"
   },
   "publishConfig": {
     "access": "public"

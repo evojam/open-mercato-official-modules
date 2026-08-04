@@ -6460,10 +6460,12 @@ __metadata:
     jest: "npm:^30.2.0"
     ts-jest: "npm:^29.4.6"
     typescript: "npm:^5.9.3"
+    zod: "npm:4.3.6"
   peerDependencies:
     "@open-mercato/shared": 0.6.3-develop.3778.1.25fdb35f2e
     "@open-mercato/ui": 0.6.3-develop.3778.1.25fdb35f2e
     react: ^19.0.0
+    zod: ^4.3.6
   languageName: unknown
   linkType: soft
 

@@ -11,9 +11,8 @@
 
 ## Design document
 
-- Architecture contract: `reservations/DESIGN.md` in the working workspace
-  (SiteDispatch side). See §3 (architecture boundary) for the rationale
-  behind the purity rule.
+- Architecture contract: `docs/DESIGN.md` in this package. See §3
+  (architecture boundary) for the rationale behind the purity rule.
 - Once the upstream-facing spec exists under `.ai/specs/`, it supersedes
   this pointer for contribution scope.
 

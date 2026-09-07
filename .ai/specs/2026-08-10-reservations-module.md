@@ -3,7 +3,7 @@
 This is a new version of the proposal. It replaces the previous specification and answers the
 review.
 
-**In short.** The module adds reservations: who is busy, when, and for what. It finds
+**TLDR.** The module adds reservations: who is busy, when, and for what. It finds
 reservations that overlap and reservations that fall into unavailability. It warns when a
 reservation without dates gets close to its start day. It shows everything on a timeline with
 one row per subject. It stands on the existing registries of resources and people, and on the
@@ -156,8 +156,9 @@ which `planner` refuses every rule write. The access check for rule writes in `p
 asks for that service, and only `staff` registers it — without `staff` you cannot enter even an
 excavator inspection, although the permission itself belongs to planner.
 
-The module declares this dependency directly, so `staff` is enabled together with it. There is no
-state where reservations work but writing unavailability fails because a module is missing. Who
+The module declares this dependency directly; the generator refuses to build an application that
+enables reservations without `staff`. There is no state where reservations work but writing
+unavailability fails because a module is missing. Who
 has the right to write unavailability is a separate question of permissions (section 10).
 
 **`events` and `notifications` — notifications.** The module only announces that something
@@ -181,8 +182,9 @@ So the contribution adds one read method to `planner`: "give the unavailability 
 subjects in this date range". The change is additive only — it touches no data, changes no
 behaviour of existing screens, and widens no type list.
 
-The method takes a list of subjects. Each one is a type, an identifier, and — if the subject has
-one — the identifier of its assigned schedule. Why this split: a rule can hang in two places, on
+The method takes the tenant and the organization, a date range, and a list of subjects. Each
+subject is a type, an identifier, and — if the subject has one — the identifier of its assigned
+schedule. Why this split: a rule can hang in two places, on
 the subject itself or on a schedule. Which schedule a subject has is known only by its registry
 (`resources` for equipment, `staff` for people), and those modules sit **above** planner —
 planner cannot reach into them, and the schedule column in those registries is a bare identifier
@@ -317,7 +319,8 @@ reservation that exists while the other module does not see it.
 Adding a subject is two writes in two modules, and there is no shared transaction over them. The
 order is fixed: first the record in the provider's registry, then our row. If the second step
 fails, a record stays in the registry with no entry on our side. We do not hide this: the user
-sees an error, and the record can be attached by the second path — "add existing". Sending the
+sees an error that carries the identifier of the record already created, and the record can be
+attached by the second path — "add existing". Sending the
 form again would create a second record at the provider, so after such an error the screen does
 not repeat the write; it offers to attach the record that was already created. The pair
 "provider + identifier" is unique among our rows, so one provider record cannot be attached
@@ -329,7 +332,10 @@ can add a subject depends on the permissions to the registry of people or resour
 ### When the provider's module is disabled
 
 The subject row stays, and the reservation history does not break. The subject stops being
-available for new reservations, and its name comes from the last remembered state.
+available for new reservations, and its name comes from the last remembered state. Its
+unavailability is unknown from that moment — there is no plugin to ask — so the timeline marks
+the row as "unavailability unknown" instead of showing it as free, and the scan skips conflicts
+with unavailability for that subject.
 
 ## 7. Data model
 
@@ -750,11 +756,19 @@ The scan does not emit signals blindly. It computes the state for today and comp
 days has changed, and the same column is then overwritten. Otherwise the same warning would go
 out five days in a row.
 
-For conflicts we keep no state. The event carries a grouping key, and the notifications layer
-merges repeats (section 12).
+For conflicts the scan keeps no list of what it has reported; the watermark is enough. A conflict
+is new when one of its two sides changed after the organization's last scan date: the
+unavailability rule was created or updated after it — rules carry an update timestamp — or the
+reservation was written after it. The scan reports only new conflicts, so a standing conflict the
+dispatcher has already seen is not reported again the next morning, and a dismissed notification
+stays dismissed. The event carries a grouping key, and the notifications layer merges repeats
+that arrive while the notification is still open (section 12).
 
-The same run computes conflicts with unavailability for the coming period and reports those that
-the previous run did not see — no matter whether an event about the window change arrived.
+The scan looks ahead over a fixed horizon: for unplaced reservations up to the warning threshold,
+for conflicts with unavailability the next ninety days — the range the timeline screen opens by
+default. Nothing beyond it is scanned; it enters the horizon on a later day. The same run computes
+conflicts with unavailability over that horizon no matter whether an event about the window
+change arrived.
 
 There is one rule and it is computed in one place: the same code feeds the screen and the scan.
 
@@ -979,17 +993,23 @@ reservations.coverage_gap.detected
 ```
 
 Events about reservation changes also go to the browser, so open screens refresh by themselves,
-without a reload.
+without a reload. Completing a reservation and bringing it back to open ride
+`reservations.reservation.updated` with the status change in the payload; only cancel has its
+own name, because it is the status change other modules react to.
 
 The module declares its own notification types, and the platform's infrastructure delivers them.
 The types are `reservations.conflict` and `reservations.coverage_gap`. Background jobs go through
 the `reservations-scan` queue. Notifications are merged by a grouping key: conflicts by subject,
 gaps by target — so the dispatcher does not get ten notifications about the same excavator.
 
+Conflict and coverage notifications go to the holders of `reservations.manage_reservations` in
+the organization; nobody outside it sees them.
+
 A conflict notification is not retracted when the clash is fixed. The first version emits no
-"resolved" event, so the notification stays until the user dismisses it. Only the notification
-list can be stale: the timeline recomputes conflicts on every read, and the notification links to
-it, so one click shows the current state.
+"resolved" event, so the notification stays until the user dismisses it. Dismissal holds: the
+scan reports a conflict only once, when it is new (section 9), so nothing recreates the
+notification the next morning. Only the notification list can be stale: the timeline recomputes
+conflicts on every read, and the notification links to it, so one click shows the current state.
 
 ### Permissions
 
@@ -1033,9 +1053,9 @@ This table is also the definition of done: until a row has coverage, the module 
 | settings | a read with no row returns the defaults and creates nothing; the first save creates the row; write and read; rejection of an invalid time zone; another organization's settings are not visible |
 | time zones | day resolved in the company's zone, not the browser's; both clock-change cases |
 | coverage gap, read | working days counted from the calendar (free days, holidays); a passed deadline gives the "overdue" state and zero days; the same result on the server and in the browser |
-| reconciliation scan | signal when the day count entered the threshold; a second run the same day emits no second one; an overdue reservation signals once; an organization is processed once per local date and a late tick does not skip a day; a conflict from a window with no event is detected |
+| reconciliation scan | signal when the day count entered the threshold; a second run the same day emits no second one; an overdue reservation signals once; an organization is processed once per local date and a late tick does not skip a day; a conflict from a window with no event is detected; a conflict reported yesterday and unchanged is not reported again; a window beyond the horizon is not scanned |
 | events | each of the nine events emitted by the right write; reservation events reach the browser |
-| notifications | two conflicts of the same excavator merged into one notification; gaps merged by target |
+| notifications | two conflicts of the same excavator merged into one notification; gaps merged by target; a dismissed conflict notification does not return after the next scan; recipients limited to the organization's holders of the manage permission |
 | permissions | a view role does not write; manage reservations without the planner right does not write a window; the administrator does |
 | board screen | rows and bars draw, conflicts are marked, the view refreshes after an event; the timeline library loads only on this screen |
 | forms | creating a reservation, saving a target, saving settings; the unavailability form sends the request to the planner endpoint and, after success, calls the conflict read (a contract test, not a pass through our server) |
@@ -1045,8 +1065,9 @@ This table is also the definition of done: until a row has coverage, the module 
 ### Translations
 
 Every string the user sees sits in the module's translation files, in all languages required by
-the platform's translation sync check — today that is English, Polish, Spanish, German and
-Korean. No labels are hard-coded in the code.
+the translation sync check of the repository the module lives in — today English, Polish, Spanish
+and German. We ship Korean as well, because the core repository's check requires it and the
+timeline component may move there. No labels are hard-coded in the code.
 
 The timeline component translates nothing by itself. It gets ready strings from outside, so the
 screen that embeds it does the translating — through the platform's translation mechanism, like
@@ -1103,23 +1124,25 @@ Disabling is deactivation. Tables and data stay, and nothing outside the module 
 
 One reservation: the module requires a core version that already has the read method for
 unavailability windows (section 5). We declare this as a peer dependency of the package, and in
-addition we check at module startup whether the method is available — without it the module
-reports a configuration error instead of pretending there is no unavailability. Enabling the
-module alone will not stop this; compilation stops it, and in a running installation the startup
-check does. Release order: first core with the method, then the module pointing at that version.
+addition, when the module registers its services at startup, it checks whether the method is
+available — without it the module fails registration with a clear message instead of pretending
+there is no unavailability. Enabling the module alone will not stop this; compilation stops it,
+and in a running installation the startup check does. Release order: first core with the method,
+then the module pointing at that version.
 
 The write check for unavailability windows in planner works only with the service from the HR
-module (section 5), so HR is declared as a dependency and is enabled together with reservations.
-An installation that reserves only equipment gets it too — it looks like excess, but without it
-nobody can enter an inspection or a breakdown.
+module (section 5), so HR is declared as a dependency: the generator refuses to build an
+application that has reservations without it. An installation that reserves only equipment must
+enable it too — it looks like excess, but without it nobody can enter an inspection or a
+breakdown.
 
 There are four dependencies in total: the resources registry, the availability schedules, HR and
 the job scheduler. We declare two directly — HR and the job scheduler; the resources registry and
-the availability schedules come with HR, because HR itself requires them. The job queue is a
-platform library, not a module, so it is not on this list. Enabling reservations on a clean
-installation pulls in all four. This is a conscious cost: without registries there is nothing to
-reserve, without schedules there is no unavailability, without the scheduler there are no
-coverage warnings.
+the availability schedules follow from HR, because HR itself requires them. The job queue is a
+platform library, not a module, so it is not on this list. Declaring a dependency does not enable
+it — an application that enables reservations must enable all four, and the generator checks
+that it did. This is a conscious cost: without registries there is nothing to reserve, without
+schedules there is no unavailability, without the scheduler there are no coverage warnings.
 
 ## 15. Dependencies and conventions
 
@@ -1245,6 +1268,15 @@ conflict read, the timeline filter by category, the unique index on participants
 to a conflict notification after the clash is fixed, and the missing test rows. Translations
 cover five languages.
 
+### What we do not know yet
+
+- Whether the maintainers accept `vis-timeline` as a new production dependency. The review
+  recommends yes; the decision is theirs.
+- Whether the planner method lands in core in the shape proposed in section 5. Its own
+  specification and pull request follow this document.
+- Whether the eleven-hour limit of the day-of-window rule (section 8) ever matters. No known
+  deployment is affected today; if one appears, the fix is on the planner write side.
+
 ### Risks
 
 | Risk | What we do about it |
@@ -1272,6 +1304,14 @@ cover five languages.
   tests are named with rewrites marked and the two inaccurate repository claims are removed
   (section 14); unique index on participants, one-year cap on the occupancy service, conflict
   notifications are not retracted, nine events, test rows for the occupancy service and undo.
+- Same day, second pass: the scan reports only conflicts new since the watermark and looks ninety
+  days ahead, so a dismissed notification stays dismissed (section 9, 12); notification
+  recipients named (section 12); the read method takes tenant, organization and range (section
+  5); a disabled provider marks its rows as "unavailability unknown" (section 6); the error after
+  a failed second write carries the created record's identifier (section 6); status changes
+  other than cancel ride `.updated` (section 12); the locale list corrected to this
+  repository's check (section 14); `requires` described as a generator check, not as enabling
+  (section 5, 14); open questions listed (section 16).
 
 ### 2026-09-04
 - Version 3, a full rewrite answering the review of 26 August: people as subjects, own subject

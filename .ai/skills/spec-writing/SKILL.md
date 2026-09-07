@@ -11,7 +11,7 @@ Design and review specifications (SPECs) for `@open-mercato/*` community module 
 
 1. **Load Context**: Read `AGENTS.md` at repo root. Skim the target module's folder if it already exists.
 2. **Initialize**: Create an empty file with the naming convention:
-   - `SPEC-{number}-{date}-{title}.md` in `.ai/specs/`
+   - `{date}-{title}.md` in `.ai/specs/` (no `SPEC-{number}` prefix; existing files keep their names)
    - Date format: `YYYY-MM-DD`
    - Title: kebab-case summary (e.g., `loyalty-cards-module`)
 3. **Start Minimal**: Write a **Skeleton Spec** (TLDR + Open Questions + 2-3 key sections). Do NOT write the full spec in one pass.

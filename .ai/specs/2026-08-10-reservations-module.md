@@ -185,24 +185,35 @@ The method takes a list of subjects. Each one is a type, an identifier, and — 
 one — the identifier of its assigned schedule. Why this split: a rule can hang in two places, on
 the subject itself or on a schedule. Which schedule a subject has is known only by its registry
 (`resources` for equipment, `staff` for people), and those modules sit **above** planner —
-planner cannot reach into them. So the caller passes the schedule, and the provider plugin
+planner cannot reach into them, and the schedule column in those registries is a bare identifier
+with no relation to join through. So the caller passes the schedule, and the provider plugin
 (section 6) reads it from its own registry. In return, planner decides the precedence between the
-subject's own rules and the schedule, because that rule already exists there — today the
-availability editor applies it. Skipping schedules would mean an inspection entered from the
-resource card is invisible to us.
+subject's own rules and the schedule. The rule, as the server will implement it: **the subject's
+own rules when it has any, otherwise the schedule's rules.** The availability editor shows a third
+condition, but that is screen state: customising copies the schedule's rules onto the subject,
+after which the subject has its own rules. Skipping schedules would mean an inspection entered
+from the resource card is invisible to us.
 
-The second thing the method must do differently from the existing code: expand one-off rules.
-Today's window expansion skips everything that does not repeat, and an approved leave is exactly
-a set of one-off rules, one per day. Without this the most important case — a person on leave —
-would give no window at all.
+The second thing the method does differently from the public availability function: it turns
+one-off rules into windows. An approved leave is exactly a set of one-off rules, one per day, and
+the public function never turns them into windows — it diverts one-off rules into override days
+and expands only repeating ones — so through it a person on leave gives no window at all. Planner
+does have an unused branch for one-off rules, but it snaps the window to the UTC day, and that
+throws away the midnight the author used — exactly the information section 8 needs to place the
+window on the right day. So our method expands a one-off rule as it is stored, start plus
+duration, on its own path; it does not reuse that branch, and it leaves the availability
+function alone, because its handling of one-off rules is what the availability side depends on.
 
 The result is flat windows: subject, from, to. The conflict engine does not know whether a window
 came from a recurring rule, from a schedule or from a leave.
 
+The method lives on the availability service that planner already registers in the container;
+that service has no production callers today, so the addition changes nothing that runs.
+
 **This means the contribution spans two repositories:** the reservations module and the read
-method in core. The module requires a core version that contains this method. The shape of the
-method is a proposal to agree with the planner maintainers — above all, whether the caller
-passes the schedule or planner should resolve it in another way.
+method in core. The module requires a core version that contains this method. The method will be
+proposed to the core repository as its own specification and pull request, under that
+repository's rules — this document is its design, not its specification of record.
 
 Rejected paths, for the record: copying the rule expansion code to our side would mean two copies
 of the same logic that drift apart. Reading through the search index is not fit for conflict
@@ -245,19 +256,38 @@ A product can add its own plugin if it keeps subjects elsewhere. A new kind of s
 change in the screens or in the engine.
 
 A plugin registers under a name — the same name that later sits in the "provider" column.
-Registration goes through the plugin registry of the reservations module: the provider's module
-puts its plugin there at startup, and the reservations module asks the registry for a plugin by
-name or for the list of all of them. This is the same pattern Open Mercato uses to register
-shipping carriers and currency rate sources — not a key in the dependency container, because one
-key there holds one implementation, and there are many plugins. The name is short and stable:
-`resources`, `staff`, and for foreign registries the identifier of their module. When a plugin is
-missing because its module was disabled, the subjects of that provider stay visible, but
-read-only.
+Registration goes through the plugin registry of the reservations module, and the reservations
+module asks the registry for a plugin by name or for the list of all of them. This is the same
+pattern Open Mercato uses to register shipping carriers and currency rate sources — not a key in
+the dependency container, because one key there holds one implementation, and there are many
+plugins. The two built-in plugins are registered by this package itself, from its own dependency
+setup — `resources` and `staff` are core modules and cannot know about an official one. A
+third-party plugin is registered by the module that owns its registry. The name is short and
+stable: `resources`, `staff`, and for foreign registries the identifier of their module. When a
+plugin is missing because its module was disabled, the subjects of that provider stay visible,
+but read-only.
 
-Both built-in plugins answer the unavailability question the same way: they read from their own
-registry which schedule each subject has, and they ask the read method in `planner` (section 5).
-The question is part of the contract so that a foreign registry can answer differently — for
-example from its own calendar.
+### How the built-in plugins read their registries
+
+Three of the four questions are reads, and neither registry offers a read service: `resources`
+registers nothing in the dependency container, `staff` registers only its access service. So the
+built-in plugins read `resources` and `staff` through the platform's query engine over those
+modules' entities — the subject's name and card, the paged list behind "add existing", and the
+schedule assigned to the subject. Importing the foreign entity classes instead would make a
+compile-time dependency across a module boundary, and server-to-server HTTP is not a platform
+pattern.
+
+The query engine has a known cost: it reads the search index, which catches up with a delay of
+seconds. For this data that is acceptable. A schedule assignment is configuration, not a booking;
+the worst case is one conflict computation that sees a schedule reassigned a moment earlier, and
+the next timeline read or the next scan corrects it. Reservations themselves never go through the
+index (section 9). Writes to the registries go through the command bus, which finds the handler
+by the command name, so no import of `resources` or `staff` is needed on that side either.
+
+Both built-in plugins answer the unavailability question the same way: they take the schedule of
+each subject from their registry and ask the read method in `planner` (section 5). The question
+is part of the contract so that a foreign registry can answer differently — for example from its
+own calendar.
 
 ### How it looks in the interface
 
@@ -365,10 +395,11 @@ reservations on the same day are a conflict, because on a day scale we cannot te
 afternoon from morning and morning. So the half is information for planning and totals; it does
 not decide occupancy. When we move to hours, this rule disappears by itself.
 
-Three things are guarded by the database itself: the from/to pair is set fully or not at all, "to"
-is after "from", and the duration is positive and goes in steps of half a day — the numeric type
-alone would let one third through. We declare these constraints on the entity, not by hand in the
-migration. A constraint added by hand does not reach the saved schema snapshot and leaves a drift
+Four things are guarded by the database itself: the from/to pair is set fully or not at all, "to"
+is after "from", the duration is positive and goes in steps of half a day — the numeric type
+alone would let one third through — and one subject appears at most once in one reservation, by
+a unique index on reservation and subject (7.2). We declare these constraints on the entity, not
+by hand in the migration. A constraint added by hand does not reach the saved schema snapshot and leaves a drift
 that nothing fixes later.
 
 The expected start is not part of these constraints, because it is always required. The coverage
@@ -440,9 +471,12 @@ spellings, and the history would fall apart.
 
 ### 7.5 Module settings
 
-One row per organization. It is created on the first read of the settings, with default values —
-nobody has to create it by hand, and an organization added later gets it the same way as the first
-one (section 14).
+One row per organization. It comes into being the way settings rows do elsewhere in the
+platform: the module setup creates it when a tenant is created, and the first save of the
+settings screen creates it when it is missing. Until a row exists, reads return the built-in
+defaults from memory and write nothing — a read never turns into a write. So an organization
+added later works from the first minute on defaults, and gets its row when someone saves
+settings or when the daily scan first writes its watermark (section 9).
 
 | Column | What it holds |
 |---|---|
@@ -451,6 +485,7 @@ one (section 14).
 | warning threshold | how many working days before the expected start to warn |
 | time zone | the organization's zone, as a name from the standard list |
 | conflict policy | default mode `advisory` or `reject`, plus exceptions for chosen subject categories — two columns; at start `advisory` with no exceptions (section 9) |
+| last scan date | the last local date the daily scan processed for this organization; written only by the scan (section 9) |
 
 The working calendar is state here. The free-day windows that follow from it are not stored
 anywhere, because they can be computed from these settings.
@@ -536,16 +571,32 @@ There is one side effect we must handle on our side. An all-day window stored as
 not match a day in the company's zone — in Poland in summer it is off by two hours. If we
 compared to the second, a Tuesday reservation would get a conflict with a Monday leave.
 
-So on the day scale we compare days, not instants. The days of a planner window are the UTC dates
-from its start to its end (end exclusive), with no conversion through the company's zone — that
-conversion is exactly what would push a Monday leave onto Tuesday as well. A window shorter than a
-day counts as its whole day. A reservation conflicts with a window when one of its days is a day
-of the window.
+So on the day scale we compare days, not instants — and we cannot read the day from the edge of a
+window. Planner stores the start of an all-day window as "midnight", but each write path uses a
+different midnight: a leave from HR is anchored to UTC midnight, planner's own editors anchor to
+the midnight of the server or of the author's browser. Two hours of difference push the start
+into the previous UTC date, so "the UTC date of the start" is right for a leave and wrong for an
+inspection entered in Warsaw. The rule therefore has two cases:
 
-Example: a Monday leave sits in the database as Monday 00:00 UTC to Tuesday 00:00 UTC. In Poland
-in summer that is Monday 02:00 to Tuesday 02:00, but the day of the window stays Monday alone, so
-a reservation from Tuesday does not conflict. When we move to the hourly scale, this rule needs a
-second look, and we will return to it then.
+- **an all-day window** (exactly one day long): its day is the date of the window's **middle**,
+  read in the company's zone. The middle of a day-long window sits around noon for any zone
+  within eleven hours of UTC — far from every day boundary — so it gives the same day no matter
+  which midnight the author's runtime used. This works because the read method hands the window
+  over as stored, start plus duration, and does not snap it to a UTC day (section 5);
+- **a window with real hours** (shorter or longer than one day): its days are all the calendar
+  days in the company's zone that it touches. A window from 23:00 to 01:00 blocks both days.
+
+A reservation conflicts with a window when one of its days is a day of the window.
+
+Example: HR stores a Monday leave as Monday 00:00 UTC to Tuesday 00:00 UTC; the middle is Monday
+12:00 UTC, 14:00 in Warsaw — Monday. An inspection for 1 June entered in Warsaw in summer, from
+our form or from the planner editor, is stored as 31 May 22:00 UTC to 1 June 22:00 UTC; the
+middle is 1 June 10:00 UTC — 1 June. Reading the start date in UTC would have given 31 May.
+
+The rule needs no time zone column on the rule and no change in planner. Its limit: an
+organization more than eleven hours from UTC, where a leave stored at UTC midnight can land on
+the neighbouring day. When we move to the hourly scale windows carry real hours and this rule is
+no longer needed.
 
 ## 9. Conflicts and coverage warnings
 
@@ -635,6 +686,13 @@ constraint at the database level would handle this without a lock, but it needs 
 extension that no module migration in Open Mercato has created so far — that is a platform
 decision, not a module one.
 
+Where this code lives matters. Command handlers on the platform do not run inside a transaction
+by themselves; a transaction exists only where the handler opens one. So the lock, the overlap
+check and the write are phases of the place, move and resize commands' own atomic block — not a
+command interceptor, which runs before the handler and outside any transaction. The lock code
+asserts that it runs inside a transaction and fails otherwise, as the platform's own advisory
+locks do; that assertion is what catches a lock taken in the wrong place.
+
 ### Coverage gap warning
 
 A reservation can exist without dates — it is a commitment that has no window yet. When few
@@ -673,12 +731,19 @@ yesterday. The event goes to the browser, so "in 3 days" becomes "in 2 days" wit
 
 It is started by the platform's job scheduler: one system-level entry, shared by the whole
 installation, puts a job on the queue, and the module's background worker walks through all
-organizations one by one. One entry instead of one per organization — then an organization added
-later has nothing to be forgotten, and the scheduler has a limit of active entries per tenant. The
-scan itself computes within one organization, because the working calendar, the threshold and the
-time zone are its settings. The entry fires every hour, and an organization is processed when a
-new day has just begun in its zone — the day turns over in the organization's zone, not the
-server's, otherwise a company in the east would get its signal a day late.
+organizations one by one. The entry is registered by the module setup with a fixed identifier,
+so repeated setups do not create duplicates. It is system-level with no tenant, so it does not
+count against the scheduler's per-tenant limit of active entries — and an organization added
+later has nothing to be forgotten. Walking the organizations is the worker's job, not the
+scheduler's. The scan itself computes within one organization, because the working calendar, the
+threshold and the time zone are its settings.
+
+The entry fires every hour, and the worker keeps a watermark per organization: it computes
+today's date in the organization's zone and compares it with the last date it processed for that
+organization (7.5). When the two differ, it processes the organization and stores the new date;
+otherwise it skips it. So the day turns over in the organization's zone, not the server's, and a
+missed or late tick delays the day's scan by an hour instead of skipping the day — this matters,
+because the coverage warning has no other trigger.
 
 The scan does not emit signals blindly. It computes the state for today and compares it with the
 "last reported warning" column on the reservation. The signal goes out only when the number of
@@ -764,7 +829,8 @@ that is already a dependency of that package. It does not fit here for two reaso
 **It lacks what a reservation timeline needs:**
 
 ```
-one row per subject across many days   the base of the view; the calendar library can
+one row per subject across many days   the base of the view; the wrapper in `ui` exposes no
+                                       resource axis at all, and the library underneath can
                                        show resources only as columns within one day
 dragging and resizing existing bars    the dispatcher moves and extends existing bars
 smooth zooming of the scale            from a few days to a few months
@@ -871,8 +937,8 @@ a given window.
 The only server-side entry for other modules. Question: a list of subjects and a date range.
 Answer: for each subject a list of busy intervals, each with the identifier of the reservation and
 the target. It counts only open reservations. It does not add unavailability — that is different
-information, asked from the provider plugins (section 6). It answers in bulk, without paging; the
-date range limits the size of the answer.
+information, asked from the provider plugins (section 6). It answers in bulk, without paging, and
+the date range is capped at one year — a longer question is rejected, so the answer has a bound.
 
 ### Undo
 
@@ -920,6 +986,11 @@ The types are `reservations.conflict` and `reservations.coverage_gap`. Backgroun
 the `reservations-scan` queue. Notifications are merged by a grouping key: conflicts by subject,
 gaps by target — so the dispatcher does not get ten notifications about the same excavator.
 
+A conflict notification is not retracted when the clash is fixed. The first version emits no
+"resolved" event, so the notification stays until the user dismisses it. Only the notification
+list can be stale: the timeline recomputes conflicts on every read, and the notification links to
+it, so one click shows the current state.
+
 ### Permissions
 
 Three: view, manage reservations, manage settings. Their identifiers are `reservations.view`,
@@ -945,7 +1016,7 @@ This table is also the definition of done: until a row has coverage, the module 
 |---|---|
 | targets and subjects | write and read within organization bounds; rejection on a stale record version; deleting and re-adding the same subject returns to the same row |
 | providers | creating a subject through each plugin; attaching a record that already exists in the registry; a subject from a disabled provider module does not disappear from history and takes no new reservations |
-| read method in planner | windows from the subject's own rules; windows from the schedule's rules when the subject has none of its own; own rules switch the schedule off; one-off rules (leave) give windows; empty result for a subject with no rules |
+| read method in planner | windows from the subject's own rules; windows from the schedule's rules when the subject has none of its own; own rules switch the schedule off; one-off rules (leave) give windows that keep their stored start and duration, not snapped to the UTC day; empty result for a subject with no rules |
 | place / move / resize | end computed from duration and the working calendar, including 2.5 days = three days; rejection for a closed reservation; rejection on a stale version; placing clears the warning counter |
 | status change | every pair from the transition matrix: allowed ones pass, disallowed ones are rejected; closed ones free the slot; bringing a completed reservation back to open recomputes conflicts and can fail in reject mode |
 | participants | conflict counted separately for each participant; the same subject twice in one reservation is rejected |
@@ -954,14 +1025,16 @@ This table is also the definition of done: until a row has coverage, the module 
 | conflicts, reject mode | a second write for the same slot fails, and the error names the subject and the slot; two parallel writes — only one succeeds |
 | conflict policy | default mode from settings; a per-category exception wins; a reservation with participants from different categories gets the stricter mode; changing the setting changes the write behaviour |
 | conflict with unavailability | always warns, never blocks; on a reservation write it comes back in the response; a window written directly in planner is visible in the conflict read and detected by the scan |
-| day of a planner window | a Monday leave stored as a UTC day does not conflict with a reservation from Tuesday in a UTC+2 zone; it conflicts with a reservation that covers Monday |
+| day of a planner window | a Monday leave stored at UTC midnight lands on Monday in a UTC+2 zone; an all-day inspection stored at Warsaw midnight lands on its own day, not the day before; a 23:00–01:00 window blocks both days; a reservation from Tuesday does not conflict with the Monday leave |
+| occupancy service | bulk answer shape per subject; open reservations only; unavailability not included; another organization's reservations not returned; a range longer than a year rejected |
+| undo | undo into a slot that now conflicts fails under `reject` and succeeds under `advisory` with the conflict returned |
 | timeline read | response shape: rows, bars, windows, calendar state; paging by rows; category filter; conflict computed on read; only subjects of the own organization |
 | "unplaced" list | reservations without dates, paged, own organization only |
-| settings | the row is created on first read with defaults; write and read; rejection of an invalid time zone; another organization's settings are not visible |
+| settings | a read with no row returns the defaults and creates nothing; the first save creates the row; write and read; rejection of an invalid time zone; another organization's settings are not visible |
 | time zones | day resolved in the company's zone, not the browser's; both clock-change cases |
 | coverage gap, read | working days counted from the calendar (free days, holidays); a passed deadline gives the "overdue" state and zero days; the same result on the server and in the browser |
-| reconciliation scan | signal when the day count entered the threshold; a second run the same day emits no second one; an overdue reservation signals once; an organization is processed when the day began in its zone; a conflict from a window with no event is detected |
-| events | each of the eight events emitted by the right write; reservation events reach the browser |
+| reconciliation scan | signal when the day count entered the threshold; a second run the same day emits no second one; an overdue reservation signals once; an organization is processed once per local date and a late tick does not skip a day; a conflict from a window with no event is detected |
+| events | each of the nine events emitted by the right write; reservation events reach the browser |
 | notifications | two conflicts of the same excavator merged into one notification; gaps merged by target |
 | permissions | a view role does not write; manage reservations without the planner right does not write a window; the administrator does |
 | board screen | rows and bars draw, conflicts are marked, the view refreshes after an event; the timeline library loads only on this screen |
@@ -995,15 +1068,23 @@ It is an official module, enabled separately in each application — not part of
 core. Reservations are a layer above the resources registry, HR and the availability schedules,
 not a foundation they stand on.
 
-One thing needs a separate answer because of this. The platform has four tests that guard whether
-entities and commands handle concurrent edits correctly. They scan only the core repository, so a
-module in a separate repository escapes them. So we move their equivalents into our package and
-run them on our side. The same thing is guarded, only in a different place.
+One thing needs a separate answer because of this. The platform has five tests that guard whether
+entities, commands and screens handle concurrent edits correctly — `optimistic-lock-editable-entities`,
+`optimistic-lock-ui-coverage`, `optimistic-lock-ui-coverage-workspace`,
+`optimistic-lock-command-coverage` and `record-locks-coverage` — and one more that checks the
+indexing configuration of factory routes, `crud-indexer-config`. All of them stop at the core
+repository, so a module in a separate repository escapes them. We bring them into our package.
+Three are copies pointed at our paths: the command sweep, the workspace UI sweep and the indexer
+check. Two are rewrites, not moves: the entity guard and the record-locks audit are driven by a
+map of entities kept inside core, so for our package they are written against our own entity
+list. The core-only UI sweep is covered by the workspace one. The same thing is guarded, only in a
+different place.
 
-Beyond that, the module meets what the repository requires from every new module: lazy loading of
-heavy libraries, design system lint rules at error level, the indexer marker on every factory
-route, mutation guards on hand-written routes, the schema snapshot in the same commit as the
-migration. The list is in the PR description, not here.
+Beyond that, the package follows the repository's conventions for a new module: lazy loading of
+heavy libraries with an import-boundary test, mutation guards on hand-written routes, the schema
+snapshot in the same commit as the migration, the indexing configuration on every factory route
+that lists an entity, and the design-system lint rules at the level the repository runs them
+today. The list is in the PR description, not here.
 
 ### Enabling and disabling
 
@@ -1013,10 +1094,10 @@ data are created by the module setup that the platform runs when a tenant is cre
 installation that already exists, the platform commands for seeding defaults and syncing role
 permissions do the same — we list them in the enabling instructions.
 
-Two things without which the module stays silent need no step at all: the settings row is created
-on the first read (section 7.5), and the daily scan has one system-level entry in the job
-scheduler and walks through the organizations by itself (section 9). An organization added after
-the module is enabled is handled the same way as the first one.
+Two things without which the module stays silent need no step at all: settings have built-in
+defaults until the first save (section 7.5), and the daily scan has one system-level entry in the
+job scheduler and walks through the organizations by itself (section 9). An organization added
+after the module is enabled is handled the same way as the first one.
 
 Disabling is deactivation. Tables and data stay, and nothing outside the module depends on them.
 
@@ -1055,7 +1136,8 @@ For foreign records we keep only the identifier, without joining tables through 
 mechanism. When a query must reach across a module boundary — for example to sort reservations by
 subject name — the join is given in that specific query, not declared once for good. When a
 foreign record must be read by identifier — for example a subject's schedule — the provider
-plugin does it through that module's entry point, not with a query to its table.
+plugin reads it through the query engine over that module's entities, never by importing its
+entity class (section 6).
 
 ### Writes
 
@@ -1116,8 +1198,10 @@ between own rules and the schedule and expands one-off rules. The shape of the m
 proposal to agree with the planner maintainers.
 
 **We take unavailability windows as ready instants** and do not convert them through the zone
-stored on the rule — the platform does not use it either. On the day scale the day of a window is
-the UTC date of its start, with a numeric example.
+stored on the rule — the platform does not use it either. On the day scale the day of an all-day
+window is read from its middle in the company's zone, because planner's write paths anchor the
+window's midnight differently; a window with real hours blocks every day it touches. Numeric
+examples in section 8.
 
 **The model is pinned down:** half-open intervals, touching ones do not conflict; duration is the
 input and the end is computed; half a day extends the end by a full day and conflicts count whole
@@ -1128,8 +1212,16 @@ reservations.
 **Table names got the module prefix**, and constraints on two columns are declared on the entity
 instead of added in the migration.
 
-**Settings are created on first read, and the scan has one system-level scheduler entry.** No
-per-organization setup step.
+**Settings follow the platform's pattern: defaults in memory, a row on first save or on tenant
+setup.** The scan has one system-level scheduler entry with a fixed identifier and keeps a
+per-organization watermark of the last processed local date. No per-organization setup step.
+
+**The built-in plugins read their registries through the query engine**, with the index delay
+accepted for schedule assignments and stated; they write through the command bus. The package
+registers both plugins itself.
+
+**The reject-mode check is a phase inside the write command's own transaction**, not an
+interceptor.
 
 **The reason for our own timeline was replaced with the real one**: no rows per subject, no
 dragging and resizing of existing bars, and counting days in the browser's zone. The library
@@ -1138,8 +1230,8 @@ choice is declared openly, with the alternative we checked.
 **Our own overlap detection now, a shared core in `shared` as a separate change.** The `customers`
 functions were checked one by one; the shared part is about twenty lines.
 
-**The module is official, not core** — with a commitment to move into our package the four tests
-that guard concurrent edits in core.
+**The module is official, not core** — with a commitment to bring into our package the guard
+tests that stop at the core repository, named in section 14 with the rewrites marked.
 
 **The core version requirement is a peer dependency plus a startup check.** Release order: core
 first, then the module.
@@ -1148,18 +1240,45 @@ first, then the module.
 resource. Schedules stay on the read side: the method in planner gets the subject's schedule from
 the caller and adds its rules by itself (section 5).
 
-**Added:** the occupancy service contract, undo of commands, the conflict read, the timeline
-filter by category, and the missing test rows. Translations cover five languages.
+**Added:** the occupancy service contract with a one-year cap on the range, undo of commands, the
+conflict read, the timeline filter by category, the unique index on participants, what happens
+to a conflict notification after the clash is fixed, and the missing test rows. Translations
+cover five languages.
 
 ### Risks
 
 | Risk | What we do about it |
 |---|---|
-| the module requires a core version with the unavailability read method | peer dependency of the package and a check at module startup; release order: core first, then the module |
+| the module requires a core version with the unavailability read method | peer dependency of the package and a check at module startup; release order: core first, then the module; the method gets its own specification in the core repository |
 | the planner maintainers change the shape of the proposed method | only the two built-in plugins call it; a signature change is a change in two files, the engine and the timeline see no difference |
-| the platform description in this document may go out of date | we limit it to rules and behaviour, with no function names or line numbers; state checked against release 0.7.0 |
+| the platform description in this document may go out of date | we limit it to rules and behaviour, with no function names or line numbers; state checked against the platform's development branch at the time of writing |
+| a schedule reassigned a moment ago reaches one conflict computation through the search index late | accepted and stated: a schedule assignment is configuration, the next timeline read or scan corrects it; reservations never go through the index |
 | a conflict from a leave entered outside our screen shows up in notifications only after the scan, up to a day later | events, where they exist, shorten this to seconds; the timeline computes conflicts on every read, so the screen shows them at once |
-| a mismatch between our company zone and UTC counting on the schedules side | the boundary is described: the zone works on our side, external windows are treated as ready instants, the day of a window is the UTC date of its start |
+| planner's write paths anchor an all-day window's midnight to different zones | the day of an all-day window is read from its middle in the company's zone, which is stable for any zone within eleven hours of UTC; the limit beyond that is stated |
 | a new dependency for drawing the timeline | loaded lazily, closed in one file, replaceable without touching the view |
 | our own list of subjects must keep up with the source registry | the row holds only a pointer and a display name; when the provider module is unavailable, history stays untouched |
-| reject mode relies on locks on subjects | the lock is held only for one transaction and covers single subjects, not the whole table; with several participants we take them in a fixed order, so two parallel writes do not block each other |
+| reject mode relies on locks on subjects | the lock is held only for one transaction and covers single subjects, not the whole table; with several participants we take them in a fixed order, so two parallel writes do not block each other; the lock code asserts it runs inside the transaction |
+
+## Changelog
+
+### 2026-09-07
+- Version 3.1, answering the review of 4 September: the built-in plugins read their registries
+  through the query engine (section 6, 15); the day of an all-day planner window is read from its
+  middle in the company's zone, windows with hours block every day they touch (section 8);
+  one-off rules are expanded as start plus duration, without the UTC-day snap (section 5);
+  settings have defaults in memory and a row on first save or tenant setup (section 7.5, 14); the
+  reject-mode check is a phase inside the write command's transaction (section 9); the scan keeps
+  a per-organization watermark and is registered with a fixed identifier (section 9); the guard
+  tests are named with rewrites marked and the two inaccurate repository claims are removed
+  (section 14); unique index on participants, one-year cap on the occupancy service, conflict
+  notifications are not retracted, nine events, test rows for the occupancy service and undo.
+
+### 2026-09-04
+- Version 3, a full rewrite answering the review of 26 August: people as subjects, own subject
+  list with provider plugins, participants table, conflict policy as data with per-category
+  exceptions, detection in the write response plus a daily reconciliation scan, permanent
+  targets, the read method added to planner, module-prefixed table names, official module. The
+  delta is described in section 16.
+
+### 2026-08-10
+- Initial specification, submitted as PR #33.

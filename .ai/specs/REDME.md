@@ -16,15 +16,18 @@ The `.ai/specs/` folder is the central repository for:
 ### Specification Files
 Specification files follow scope-specific patterns:
 
-- OSS specs: `SPEC-{number}-{date}-{title}.md`
+- OSS specs: `{date}-{title}.md`
 
-- **Number**: Sequential identifier (e.g., `001`, `002`, `003`)
+There is no `SPEC-{number}` prefix for new specs. Numbers were picked when a spec was written and
+claimed when it merged, so two specs could take the same number; the date and the title identify a
+spec well enough. Existing files keep their names.
+
 - **Date**: Creation date in ISO format (`YYYY-MM-DD`)
 - **Title**: Descriptive kebab-case title (e.g., `sidebar-reorganization`, `messages-module`)
 
 **Examples**:
-- `SPEC-007-2026-01-26-sidebar-reorganization.md`
-- `SPEC-ENT-001-2026-02-17-security-module-enterprise-mfa.md`
+- `2026-08-10-reservations-module.md`
+- `SPEC-004-2026-03-25-carrier-dhl-parcel.md` (existing file, name unchanged)
 
 ### Meta-Documentation Files
 Files like `AGENTS.md` and `CLAUDE.md` use UPPERCASE names and are not numbered—they provide guidelines for working with the specs themselves.
@@ -98,7 +101,7 @@ Every ADR must maintain a changelog at the bottom:
 ### When Creating New Modules
 
 1. Create a new specification file at:
-   - `.ai/specs/SPEC-{next-number}-{YYYY-MM-DD}-{module-name}.md` for Open Source edition scope
+   - `.ai/specs/{YYYY-MM-DD}-{module-name}.md` for Open Source edition scope (no number prefix)
 2. Document the initial design before or alongside implementation
 3. Include a changelog entry for the initial specification
 4. Update this README.md with a link to the new specification

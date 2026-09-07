@@ -16,15 +16,15 @@ For detailed spec writing and review, use the spec-writing skill:
 ## File Naming Convention
 
 Use the naming format that matches scope:
-- OSS: `SPEC-{number}-{date}-{title}.md`
-- Enterprise: `SPEC-ENT-{number}-{date}-{title}.md`
-- `number`: sequential zero-padded ID (`001`, `002`, ...)
+- OSS: `{date}-{title}.md` — no `SPEC-{number}` prefix. Numbers were picked at writing time and
+  claimed at merge time, so they collide; the date and title are enough. Existing files keep
+  their names.
+- Enterprise: `SPEC-ENT-{number}-{date}-{title}.md` (unchanged)
 - `date`: `YYYY-MM-DD`
 - `title`: kebab-case summary
 
 Examples:
-- `SPEC-023-2026-02-11-confirmation-dialog-migration.md`
-- `SPEC-024-2026-02-12-example-module.md`
+- `2026-08-10-reservations-module.md`
 - `SPEC-ENT-001-2026-02-17-security-module-enterprise-mfa.md`
 
 ## Workflow Triggers

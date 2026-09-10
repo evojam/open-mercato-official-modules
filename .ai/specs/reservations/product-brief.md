@@ -1,11 +1,16 @@
 # Reservations module — product brief
 
-- Date: 2026-09-09 · Mode: own idea, with the three existing-product sections added
-  because the module lands in a running platform (What stays unchanged, Impact on existing
-  data and users, Compatibility surfaces touched) · Owner: Jacek Zabilowicz (JacekZ96, Evojam)
-- Coverage: 121 claims — 119 sourced (interview 0, data 0, document 55, product 61, benchmark 3), 0 synthetic, 2 assumed; 0 entries on the collection plan
-- Definition of Ready signed by: team — Jacek Zabilowicz, 2026-09-09; riskiest assumption
-  A03 accepted untested (D05); the ranking of the assumptions is the agent's (D07)
+- Date: 2026-09-09, reviewed with the product owner 2026-09-10 · Mode: own idea, with the
+  three existing-product sections added because the module lands in a running platform
+  (What stays unchanged, Impact on existing data and users, Compatibility surfaces touched)
+- Owners: Marta Zieminska (product owner, Evojam) for product decisions and non-goals;
+  Jacek Zabilowicz (JacekZ96, Evojam) for technical decisions and business rules. A team
+  works on the module alongside them.
+- Coverage: 134 claims — 131 sourced (interview 0, data 0, document 61, product 67, benchmark 3), 0 synthetic, 3 assumed; 0 entries on the collection plan
+- Definition of Ready signed by: Marta Zieminska (product owner) and Jacek Zabilowicz
+  (developer), 2026-09-10; riskiest assumption A03 accepted untested (D05). The
+  assumptions were reviewed by the product owner on 2026-09-10: A01 and A02 are resolved
+  as deliberate decisions, A03 stands as the top risk, A05 and A06 wait on the developer
 - Location: `.ai/specs/reservations/` — this repository hosts many independent modules, so
   the brief lives in the module's own folder rather than at `.ai/specs/product-brief.md`,
   where one brief per repository would collide with the next module's. The decision
@@ -21,9 +26,9 @@
   - `open-mercato/open-mercato`: PR #4207 (v1 proposal, review 2026-07-26), issue #4316,
     issue #5862, `BACKWARD_COMPATIBILITY.md`, `.ai/specs/2026-06-11-crm-calendar.md`,
     `packages/core/src/modules/planner/di.ts`
-  - decision records D01–D07, D15 and D18 from the discovery session of 2026-09-09, in the
-    *Decision records* section at the end of this file (D08–D14, D16, D17 rest on the PR
-    documents)
+  - decision records D01–D07, D15 and D18 from the discovery session of 2026-09-09, plus the
+    product owner's review of 2026-09-10, in the *Decision records* section at the end of
+    this file (D08–D14, D16, D17 rest on the PR documents)
   - merged-PR history of `official-modules`; benchmark pages checked 2026-09-09
 
 ## Vision
@@ -32,17 +37,19 @@ Any product built on Open Mercato that must know whether a resource is busy take
 from one module — reservations, conflicts, a timeline — instead of writing it from
 scratch. `[PRODUCT]` spec §1, §3 — signed by the owner on 2026-09-09 (Q01)
 
-The first product Evojam intends to build on it is a dispatch application; it does not
-exist yet, and the intent is that real people use the module for their business needs.
-`[DOCUMENT]` Decision records, D18
+The first product Evojam builds on it is a site dispatch application, under construction
+alongside the module. It is meant to be used by other companies running Open Mercato, and
+the module was extracted from it once it became clear the mechanism is not specific to
+that one product. `[DOCUMENT]` Decision records, D18
 
 ## Target group and stakeholders
 
 - Customer (pays): nobody — the module is a free open-source contribution funded by
   Evojam's own time. `[DOCUMENT]` Decision records, D02
 - User (uses): the dispatcher who places equipment and crews on sites and decides what to
-  do about a clash — the user of the dispatch application Evojam intends to build (D18);
-  no such user exists today. `[PRODUCT]` spec §1, §9 ("a person decides")
+  do about a clash — the user of the site dispatch application Evojam is building
+  alongside the module (D18); that application is not in production yet, so no such user
+  exists today. `[PRODUCT]` spec §1, §9 ("a person decides")
 - User (uses): the reception desk that books visits and the practice owner who needs the
   no-show rate — the users of the consumer described in PR #53, if it builds on the
   module. `[DOCUMENT]` PR #53 SPEC-009, User Stories
@@ -57,9 +64,10 @@ exist yet, and the intent is that real people use the module for their business 
 - Stakeholders (decides — merge rights): every PR merged in `official-modules` so far
   (18 of 18) was merged by Dominik Palatyński; who accepts the core method is not named in
   any source. `[DOCUMENT]` merged-PR history of `official-modules`, checked 2026-09-09
-- The owner does not know the Open Mercato people and does not need a name: "someone with
-  the rights has to accept it; who, does not matter to me".
-  `[DOCUMENT]` Decision records, D18 (session answers)
+- No name is needed on the Open Mercato side. The module is a shared piece of an open
+  source solution, so anyone with the rights can accept and later maintain it; acceptance
+  now and maintenance later are separate acts, and neither is tied to a person we must
+  name. `[DOCUMENT]` Decision records, D18 and the review of 2026-09-10
 - Stakeholders (blocks or benefits): the author of PR #53, whose appointment module would
   consume the engine and who offered to close their proposal if #33 takes their six
   requirements. `[DOCUMENT]` PR #53 body, Q1
@@ -68,11 +76,13 @@ exist yet, and the intent is that real people use the module for their business 
   it. `[DOCUMENT]` core issue #5862 and its comment (2026-09-03)
 - Stakeholders (originates): Paweł Dybcio filed the v1 proposal in core (PDF, 2026-07-16)
   and announced the rewrite that became PR #33. `[DOCUMENT]` core PR #4207 comment 2026-08-03
-- Decider for scope decisions: Jacek Zabilowicz for the Evojam side; acceptance itself
-  sits with the Open Mercato maintainers through the review of PR #33.
-  `[DOCUMENT]` Decision records, D01
-- Second signer on the Evojam side: the project manager, by role — no name given; the
-  owner signs day to day, as the one currently developing the module. (Q09)
+- Decider for scope decisions: Marta Zieminska (product owner) on the Evojam side, with
+  Jacek Zabilowicz deciding the technical shape; acceptance itself sits with the Open
+  Mercato maintainers through the review of PR #33.
+  `[DOCUMENT]` Decision records, D01 and the review of 2026-09-10
+- Two roles sign on the Evojam side: Marta Zieminska as product owner, and Jacek
+  Zabilowicz as the developer who signs the technical decisions day to day, as the one
+  currently building the module. Not Pawel Dybcio, who filed the v1 proposal. (Q09)
 
 ## Problems, with evidence
 
@@ -97,8 +107,14 @@ exist yet, and the intent is that real people use the module for their business 
   says what the designer meant — a placeholder, not demand.
   `[PRODUCT]` core `.ai/specs/2026-06-11-crm-calendar.md`, mockup notes table
 - How often these problems occur and what they cost has not been measured: no interview or
-  usage data exists, and the owner chose to write this brief from documents alone.
+  usage data exists, and the product owner chose to write this brief from documents alone.
   `[DOCUMENT]` Decision records, D03
+- Evojam did speak to companies while shaping the site dispatch application, including one
+  that needed a tool for managing equipment on building sites. Those conversations were
+  informal, the notes are thin, and they were about that application rather than about this
+  module, so nothing from them is cited here as evidence. They are recorded because they
+  are where the idea came from, not because they prove anything.
+  `[ASSUMPTION]` review of 2026-09-10
 - That the problem is frequent enough to justify a shared module rather than product-local
   code is a belief, not a measurement. `[ASSUMPTION]` tested by A04
 
@@ -140,17 +156,21 @@ Benchmark (each checked on 2026-09-09):
 
 ## Goals and success criteria
 
-- Business goal: visibility of Evojam in the Open Mercato community and advancing Open
-  Mercato itself; no revenue is attached and no date was set.
+- Business goal: something good for the partnership with Open Mercato — a solution
+  everyone involved can use, and a way to advance Open Mercato itself, alongside visibility
+  for Evojam in the community; no revenue is attached and no date was set.
   `[DOCUMENT]` Decision records, D02
 - User outcome: a dispatcher sees a clash — two reservations on one subject, or a
   reservation on a leave or an inspection — in the response to the write or on the next
   timeline read, and sees which unplaced reservations are running out of time before it is
   too late. `[PRODUCT]` spec §2, §9
-- Primary metric: consumers outside Evojam building on the module — baseline 0,
-  threshold 1. `[DOCUMENT]` Decision records, D04
-- Primary metric, date: six months after the module's first release — accepted by the
-  owner at the confirmation on 2026-09-09 (Q02). `[DOCUMENT]` Decision records, D04
+- Primary metric: other companies using the module for their own purposes — baseline 0,
+  threshold 1. This counts a company running the module inside its own Open Mercato
+  installation as well as another module built on top of it.
+  `[DOCUMENT]` Decision records, D04
+- Primary metric, date: between six months and a year from 2026-09-10, so checked no later
+  than 2027-09-10. This replaces "six months after the first release", which had no anchor
+  because no release date exists (Q02). `[DOCUMENT]` Decision records, D04
 - What must not get worse: planner's behaviour and stored rules — the contribution adds
   one read method and changes no write path, no screen, no type list. `[PRODUCT]` spec §5
 - What must not get worse: the `ui` calendar view and the CRM calendar stay as they are;
@@ -176,7 +196,13 @@ Benchmark (each checked on 2026-09-09):
   `shared`, as a separate core change with its own tests.
   `[DOCUMENT]` PR #33 comment 2026-09-04 (M7)
 - **Later:** the module's final shape is expected to evolve in the open once it is public;
-  rework after phase 1 is acceptable to the owner. `[DOCUMENT]` Decision records, D07
+  rework after phase 1 is acceptable to the product owner. `[DOCUMENT]` Decision records, D07
+- **On the day scale:** phase 1 plans in whole days because that is what can be delivered
+  now, not because hours are thought unnecessary. Smaller granularity is intended for a
+  later version. `[DOCUMENT]` Decision records, D06 and the review of 2026-09-10
+- **No timing on any of the later items.** When a second version can be built is unknown,
+  and things may have changed by then, so nothing deferred carries a date.
+  `[DOCUMENT]` review of 2026-09-10
 - **Not doing:** see Non-goals
 
 ## Domain glossary
@@ -240,8 +266,8 @@ Each term: meaning · owned by · visible to. Sources: spec §2, §6, §7, §9, 
 
 ## Business rules
 
-Every rule: owner Jacek Zabilowicz · status active · required path to change: a
-superseding row approved by the owner plus a spec changelog entry. Review by: after
+Every rule: owner Jacek Zabilowicz (developer) · status active · required path to change:
+a superseding row approved by the owner plus a spec changelog entry. Review by: after
 phase 1 ships, unless the entry says otherwise.
 
 - **R01** — A reservation occupies its participants; phase 1 writes exactly one
@@ -291,9 +317,9 @@ phase 1 ships, unless the entry says otherwise.
 
 ## Non-goals
 
-Every non-goal: owner Jacek Zabilowicz · status active · required path to change: a
-superseding row approved by the owner plus a spec changelog entry. Review by: after
-phase 1 ships, unless the entry says otherwise.
+Every non-goal: owner Marta Zieminska (product owner) · status active · required path to
+change: a superseding row approved by the owner plus a spec changelog entry. Review by:
+after phase 1 ships, unless the entry says otherwise.
 
 - **N01** — We are not building a replacement for the CRM calendar in `customers`.
   - Why: it is a record of meetings, not of occupancy; a product that wants a meeting on
@@ -326,45 +352,77 @@ phase 1 ships, unless the entry says otherwise.
 
 ## Decisions
 
-Every decision: owner Jacek Zabilowicz · status active · required path to change: a
-superseding row approved by the owner, unless the entry says otherwise.
+Owners split by kind, as agreed on 2026-09-10: **Marta Zieminska (product owner)** owns
+D01 to D07, D18 and D19; **Jacek Zabilowicz (developer)** owns D08 to D17. Every decision:
+status active · required path to change: a superseding row approved by its owner, unless
+the entry says otherwise.
 
 - **D01** (2026-08-10) — Reservations are proposed as an Open Mercato module contributed by
-  Evojam, not a feature inside the dispatch application.
-  - Why: nothing in the mechanism depends on the industry; the product adds meaning, the
-    module adds reservations, conflicts, timeline. `[PRODUCT]` spec §1
+  Evojam, not a feature inside the site dispatch application.
+  - Why: the order of events was Evojam deciding to build its own application on Open
+    Mercato, meant to be used by other companies running the platform; that application
+    needed a Gantt view and the ability to assign work on it, which the platform did not
+    have; it then became clear the piece is not specific to that product and many Open
+    Mercato clients could use it. Nothing in the mechanism depends on the industry: the
+    product adds meaning, the module adds reservations, conflicts and a timeline.
+    `[PRODUCT]` spec §1; `[DOCUMENT]` review of 2026-09-10
+  - Owner: Marta Zieminska (product owner)
   - The idea was first filed in core as PR #4207 on 2026-07-16 by Paweł Dybcio and
     rewritten after its format review. `[DOCUMENT]` core PR #4207
   - Review by: after phase 1 ships
-- **D02** (2026-09-09) — The contribution is free and open source; nobody pays; Evojam's
-  goal is visibility in the Open Mercato community and advancing Open Mercato.
-  - Why: stated by the owner in the discovery session. `[DOCUMENT]` Decision records, D02
+- **D02** (2026-09-09) — The contribution is free and open source; nobody pays. The goal is
+  something good for the partnership with Open Mercato: a solution everyone involved can
+  use, a way to advance Open Mercato, and visibility for Evojam in the community.
+  - Why: stated in the discovery session and confirmed by the product owner on 2026-09-10.
+    `[DOCUMENT]` Decision records, D02
+  - Owner: Marta Zieminska (product owner)
   - Review by: 2027-03-09
 - **D03** (2026-09-09) — This brief rests on documents, not interviews; no interview or
   data collection is planned for it.
-  - Why: the owner did not want a "go ask someone" entry; the problem section says plainly
-    what it rests on. `[DOCUMENT]` Decision records, D03
+  - Why: no "go ask someone" entry was wanted; the problem section says plainly what it
+    rests on. Informal conversations with companies did happen while the site dispatch
+    application was being shaped, but they were undocumented and about that application
+    rather than this module, so they are recorded in Problems and cited as evidence
+    nowhere. `[DOCUMENT]` Decision records, D03; review of 2026-09-10
+  - Owner: Marta Zieminska (product owner)
   - Review by: after phase 1 ships
-- **D04** (2026-09-09) — Success means at least one consumer outside Evojam builds on the
-  module.
+- **D04** (2026-09-09, date revised 2026-09-10) — Success means at least one company
+  outside Evojam using the module for its own purposes, within six months to a year from
+  2026-09-10.
   - Why: chosen over "spec merged" and "dispatch in production" as the only outcome that
     proves value for Open Mercato. `[DOCUMENT]` Decision records, D04
-  - Tension with D06: the only known candidate (PR #53) needs minute-level scheduling,
-    which is phase 2 (A01) — phase 1 as scoped wins this metric only if that author accepts
-    the deferral (Q08) or another consumer appears.
-  - Review by: at the date set in Q02
-- **D05** (2026-09-09) — No kill criterion: the team adapts to the maintainers' review
-  until the spec is accepted; if the core method is refused, another way is found.
-  - Why: stated by the owner. `[DOCUMENT]` Decision records, D05
+  - Tension with D06: the only known candidate needs minute-level scheduling, which is
+    deferred with no date (A01). Phase 1 as scoped wins this metric only if that author
+    accepts day scale in the meantime (Q08), or a consumer we have not met yet appears.
+    The brief keeps this visible rather than smoothing it over.
+  - Owner: Marta Zieminska (product owner)
+  - Review by: 2027-09-10 at the latest
+- **D05** (2026-09-09, reasoning revised 2026-09-10) — No kill criterion, because a refusal
+  does not kill the project. Evojam needs this for its own application, so it gets built
+  either way; a refusal changes where the code lives, not whether the work happens.
+  - Why: Evojam needs the capability for the site dispatch application, and Open Mercato
+    themselves saw it as useful and asked for it as a module contribution, so contributing
+    it is the natural route rather than a favour. The team adapts to the maintainers'
+    review; if the core method is refused, another way is found.
+    `[DOCUMENT]` Decision records, D05; review of 2026-09-10
+  - Still open: at what point we stop waiting on the core decision and build it our own way
+    instead. That checkpoint has not been set.
+  - Owner: Marta Zieminska (product owner)
   - Review by: after the core PR for the method is decided
 - **D06** (2026-09-09) — Spec §4 "first version" is phase 1; every deferred item is phase 2
   or later, not rejected.
-  - Why: stated by the owner. `[DOCUMENT]` Decision records, D06
+  - Why: stated in the session and confirmed by the product owner on 2026-09-10.
+    `[DOCUMENT]` Decision records, D06
   - Matches the spec's own wording. `[PRODUCT]` spec §4
+  - Nothing deferred carries a date: when a second version can be built is unknown, and
+    things may have changed by then. `[DOCUMENT]` review of 2026-09-10
+  - Owner: Marta Zieminska (product owner)
   - Review by: after phase 1 ships
 - **D07** (2026-09-09) — The module's final shape will evolve in the open; rework after
   phase 1 is acceptable.
-  - Why: stated by the owner. `[DOCUMENT]` Decision records, D07
+  - Why: stated by the developer in the session; the product owner confirmed the position
+    on 2026-09-10. `[DOCUMENT]` Decision records, D07
+  - Owner: Marta Zieminska (product owner)
   - Review by: after phase 1 ships
 - **D08** (2026-09-04) — Planner gets one additive read method — unavailability windows for
   `{ subjectType, subjectId, ruleSetId? }` items in a range — on
@@ -436,41 +494,54 @@ superseding row approved by the owner, unless the entry says otherwise.
     for equipment. `[DOCUMENT]` PR #33 review 2026-08-26 (B1 qualification), comment 2026-09-04
   - Stated in the spec. `[PRODUCT]` spec §5, §14
   - Review by: after phase 1 ships
-- **D18** (2026-09-09) — The dispatch application does not exist yet; Evojam intends to
-  build it on the module in time, so that real people use the module for their business
-  needs. The owner needs no name for who accepts the contribution on the Open Mercato side.
-  - Why: stated by the owner in answer to the skeptic's questions.
-    `[DOCUMENT]` Decision records, D18
-  - Review by: when the dispatch application has a dated plan
+- **D18** (2026-09-09, corrected 2026-09-10) — The site dispatch application is being built
+  alongside the module, not merely intended. It is meant to be used by other companies
+  running Open Mercato. No name is needed for who accepts the contribution on the Open
+  Mercato side: this is a shared piece of an open source solution, so anyone with the
+  rights can accept it and anyone can maintain it afterwards.
+  - Why: stated in answer to the skeptic's questions, corrected by the product owner on
+    2026-09-10, who confirmed the application is under construction in parallel.
+    `[DOCUMENT]` Decision records, D18; review of 2026-09-10
+  - The person who filed core issue #4316 stays recorded as evidence that the problem is
+    real, not as a user of this module. Confirmed by the product owner 2026-09-10.
+  - Owner: Marta Zieminska (product owner)
+  - Review by: when the site dispatch application reaches production
 - **D19** (2026-09-09) — One organization = one time zone, for now. A company that needs
   sites in several time zones creates several organizations; no per-site zone in phase 1.
-  - Why: stated by the owner; matches the platform's tenant → organizations model and
-    spec §8 (R04). `[DOCUMENT]` Decision records, D19
+  - Why: stated in the session; matches the platform's tenant → organizations model and
+    spec §8 (R04). The product owner reviewed it on 2026-09-10 and left it with the
+    developer as a technical design question. `[DOCUMENT]` Decision records, D19
+  - Owner: Marta Zieminska (product owner), on the developer's design
   - Review by: the first user who needs several zones inside one organization
 
 ## Riskiest assumptions
 
-Every assumption: owner Jacek Zabilowicz · result untested, unless the entry says
-otherwise. The ranking is the agent's (D07).
+Reviewed by the product owner on 2026-09-10. A01 and A02 are resolved: they were
+deliberate decisions, not untested bets, and their entries record that. A03 is the top
+risk, because it is the only one nobody at Evojam can settle. A05 and A06 are technical
+and wait on the developer. Owners are named per entry; result untested unless the entry
+says otherwise.
 
 - **A01** — A day scale is enough for the first users (equipment dispatch).
-  - Importance: high
-  - Evidence today: none for dispatchers — the dispatch application does not exist yet
-    (D18); against: the one known consumer outside Evojam needs minutes.
-    `[DOCUMENT]` PR #53 requirement 1
-  - If false: the timeline and the "whole days conflict" rule are reworked; an hourly axis
-    needs no data change. `[PRODUCT]` spec §4
-  - Smallest test: the first production month of whichever consumer runs first — dispatch
-    once built, or the PR #53 module: count reservations that needed an hour
-  - By when: first consumer in production
-- **A02** — Dispatchers prefer a warning to a refused save.
-  - Importance: medium
-  - Evidence today: weak: the spec's own reasoning; no dispatcher exists to ask (D18).
-    `[PRODUCT]` spec §9
-  - If false: the default flips to `reject` — a setting, no code
-  - Smallest test: in the first consumer's first production month, count conflicts saved
-    then moved by hand
-  - By when: first consumer in production
+  - Importance: resolved, no longer carried as a risk
+  - Result: **not an assumption, a decision.** Phase 1 plans in whole days because that is
+    what can be delivered now, not because hours are thought unnecessary. Smaller
+    granularity is intended for a later version, with no date attached. Recorded in Scope
+    and D06. `[DOCUMENT]` review of 2026-09-10
+  - What still holds: the one known consumer outside Evojam needs minutes, which feeds the
+    tension recorded under D04. `[DOCUMENT]` PR #53 requirement 1
+  - If the day scale turns out to block adoption: the timeline and the "whole days
+    conflict" rule are reworked; an hourly axis needs no data change. `[PRODUCT]` spec §4
+  - Owner: Marta Zieminska (product owner)
+- **A02** — Warning by default rather than a refused save.
+  - Importance: resolved, no longer carried as a risk
+  - Result: **not an assumption, a decision made for flexibility.** Warning by default lets
+    the module fit different industries and situations, where a hard refusal would not.
+    Refusing remains available as a per-organization setting. `[DOCUMENT]` review of
+    2026-09-10; `[PRODUCT]` spec §9
+  - If it turns out wrong for a given customer: the default flips to `reject`, a setting,
+    no code
+  - Owner: Marta Zieminska (product owner)
 - **A03** — The planner read method lands in core in the shape of spec §5.
   - Importance: high
   - Evidence today: some: the reviewer accepted the shape with two conditions; no core PR
@@ -478,11 +549,16 @@ otherwise. The ranking is the agent's (D07).
   - If false: the module copies rule expansion or waits; D05 says the team adapts
   - Smallest test: open the core spec and PR; the maintainers' first review is the test
   - By when: when PR #33 is accepted
-  - Result: accepted untested (D05, confirmed by the owner 2026-09-09)
-- **A04** — Someone outside Evojam builds on the module.
-  - Importance: high
-  - Evidence today: some: the PR #53 author would consume it if it takes their
-    requirements. `[DOCUMENT]` PR #53 Q1
+  - Owner: Jacek Zabilowicz (developer)
+  - Result: accepted untested (D05). Reviewed on 2026-09-10 and confirmed as the top risk:
+    it is the only assumption nobody on the Evojam side can settle. A refusal does not stop
+    the work, it changes where the code lives (D05).
+- **A04** — A company outside Evojam uses the module for its own purposes.
+  - Importance: high, second after A03
+  - Evidence today: some, and it rests on one party. `mmkozlowski` authored both PR #32 and
+    PR #53 and would consume the module if it takes their requirements; checked against the
+    GitHub API on 2026-09-10, they are one party, not two. `[DOCUMENT]` PR #53 Q1; PR #32
+  - Owner: Marta Zieminska (product owner)
   - A core issue asks for leave-aware conflicts in the CRM calendar — demand for the idea,
     not a user of this module. `[DOCUMENT]` core issue #4316
   - The "Reservations NEW" mockup entry is a placeholder and counts for nothing.
@@ -493,6 +569,9 @@ otherwise. The ranking is the agent's (D07).
 - **A05** — The team can carry two repositories at once — the core PR for the method and
   the module.
   - Importance: medium
+  - Owner: Jacek Zabilowicz (developer). Put to the product owner on 2026-09-10 and
+    returned as a technical question she cannot answer; it stays open until the developer
+    does.
   - Evidence today: none
   - If false: phase 1 is delayed by the core release cycle; peer dependency and startup
     check already cover the ordering. `[PRODUCT]` spec §14
@@ -507,6 +586,7 @@ otherwise. The ranking is the agent's (D07).
     may need to follow the new anchoring
   - Smallest test: follow #5862; re-read spec §5 and §8 when it resolves
   - By when: when #5862 resolves
+  - Owner: Jacek Zabilowicz (developer); left with him by the product owner on 2026-09-10
 - **A07** — One time zone per organization is enough.
   - Importance: low
   - Evidence today: none; the owner raised the point in the session ("one company can
@@ -517,20 +597,30 @@ otherwise. The ranking is the agent's (D07).
   - By when: first multi-site deployment
   - Result: accepted untested (D19, 2026-09-09) — several sites in several zones means
     several organizations
-- **A08** — Evojam builds the dispatch application on the module, so the module gets its
-  first real users.
-  - Importance: medium
-  - Evidence today: none beyond the owner's stated intent. `[DOCUMENT]` Decision records, D18
-  - If false: the module has no consumer of Evojam's own; A01 and A02 can only be tested on
-    someone else's product
-  - Smallest test: a dated plan for the dispatch application
-  - By when: not set
+- **A08** — Evojam builds the site dispatch application on the module, so the module gets
+  its first real users.
+  - Importance: low, largely resolved
+  - Evidence today: the application is under construction alongside the module, confirmed by
+    the product owner on 2026-09-10. What remains unproven is not whether it is built but
+    whether it reaches production and real users. `[DOCUMENT]` Decision records, D18
+  - If false: the module has no consumer of Evojam's own, and the first production evidence
+    has to come from someone else's product
+  - Smallest test: the application reaches production with real users
+  - By when: not set, per the decision to attach no dates to later work
+  - Owner: Marta Zieminska (product owner)
 
 ## Kill criteria
 
-None set. The owner decided (D05) that the team adapts to the maintainers' review until
-the spec is accepted, and looks for another way if the core method is refused. The brief
-records this as a conscious absence, not an oversight.
+None set, and the reason is not optimism. Evojam needs this capability for the site
+dispatch application it is building, so the work happens either way; a refusal from Open
+Mercato changes where the code lives, not whether it exists. Open Mercato themselves saw
+the module as useful and asked for it as a contribution, so contributing is the natural
+route rather than a favour being done. The team adapts to the maintainers' review, and if
+the core method is refused, another way is found (D05).
+
+One thing is genuinely unset: the point at which we stop waiting on the core decision and
+build it our own way instead. That checkpoint has not been chosen, and the brief records
+the gap rather than papering over it.
 
 ## Hypotheses to test
 
@@ -539,13 +629,16 @@ None: no persona walkthrough or simulated interview was run, so nothing carries 
 
 ## Open questions
 
-- **Q01** — Does the owner sign the vision sentence as written, or reword it?
-  - Blocking: no · Who can answer: Jacek Zabilowicz
-  - Status: closed 2026-09-09 — signed as written
-- **Q02** — By what date should the first consumer outside Evojam exist (D04)? Proposal:
-  six months after the first release.
-  - Blocking: no · Who can answer: Jacek Zabilowicz
-  - Status: closed 2026-09-09 — six months after the first release
+- **Q01** — Is the vision sentence signed as written, or reworded?
+  - Blocking: no · Who can answer: Marta Zieminska (product owner)
+  - Status: closed 2026-09-09, reconfirmed 2026-09-10 — signed as written, with the second
+    paragraph corrected: the site dispatch application is being built alongside the module,
+    not merely intended.
+- **Q02** — By what date should the first company outside Evojam be using the module (D04)?
+  - Blocking: no · Who can answer: Marta Zieminska (product owner)
+  - Status: closed 2026-09-10 — six months to a year from 2026-09-10, so checked no later
+    than 2027-09-10. This replaced "six months after the first release", which had no
+    anchor because no release date exists.
 - **Q03** — Do the Open Mercato maintainers (the people with merge rights, not the
   library's authors) accept `vis-timeline` as a new production dependency of the module?
   - Blocking: yes, for implementation of the timeline
@@ -580,7 +673,8 @@ None: no persona walkthrough or simulated interview was run, so nothing carries 
     change on our side.
 - **Q07** — A company operating in several time zones: several organizations each with its
   own zone, or a per-site zone the spec does not have?
-  - Blocking: no · Who can answer: Jacek Zabilowicz, with the first multi-site user
+  - Blocking: no · Who can answer: Jacek Zabilowicz (developer), with the first multi-site
+    user; reviewed and left with him by the product owner on 2026-09-10
   - Status: closed 2026-09-09 — D19: one organization = one time zone for now; a company
     with sites in several zones creates several organizations
 - **Q08** — Does the author of PR #53 accept phase 1 plus the deferred list as their
@@ -594,23 +688,32 @@ None: no persona walkthrough or simulated interview was run, so nothing carries 
     already timestamps, it is a matter of polishing; a no-show state makes sense and may
     be added, the topic can return; per-type buffers only make sense once the scale is
     minutes, so they go with (1).
-  - Status: open — the author has not been asked yet
+  - Status: open — asked on 2026-09-09 in a comment on PR #33 with an @-mention; waiting
+    for their answer
+  - The honest consequence (recorded 2026-09-10): this is the only known consumer outside
+    Evojam, and they need minute-level scheduling, which is deferred with no date. They may
+    not adopt inside the six-to-twelve-month window set in D04. Either they accept day scale
+    in the meantime, or the metric rests on a consumer we have not met yet.
 - **Q09** — Who beyond the owner co-signs scope on the Evojam side — the originator of v1,
   a project manager, nobody?
   - Blocking: no · Who can answer: Jacek Zabilowicz
-  - Status: closed 2026-09-09 — the project manager, by role, no name given; not the
-    originator of v1; the owner signs day to day
-- **Q10** — Does the owner sign D15 (keep R13 and note core issue #5862 in the spec), or
-  replace it?
-  - Blocking: no · Who can answer: Jacek Zabilowicz
-  - Status: closed 2026-09-09 — signed
+  - Status: closed 2026-09-10 — Marta Zieminska, product owner on the Evojam side. Not
+    Pawel Dybcio, who filed the v1 proposal. Jacek Zabilowicz is the developer and signs
+    the technical decisions day to day. Product decisions and non-goals sit with the
+    product owner; technical decisions and business rules with the developer.
+- **Q10** — Is D15 signed (keep R13 and note core issue #5862 in the spec), or replaced?
+  - Blocking: no · Who can answer: Jacek Zabilowicz (developer)
+  - Status: closed 2026-09-09, reconfirmed 2026-09-10 — signed. The product owner reviewed
+    it and left the timezone design with the developer.
 - **Q11** — Who decides acceptance by name — merging PR #33 in `official-modules` (merge
   history points at Dominik Palatyński) and accepting the planner method in core (no name
   in any source)?
-  - Blocking: no — the owner does not need a name; acceptance is by whoever holds the
-    rights (D18)
+  - Blocking: no — no name is needed; acceptance is by whoever holds the rights (D18)
   - Who can answer: the Open Mercato maintainers themselves
-  - Status: closed 2026-09-09 — not needed; the owner does not need a name (D18)
+  - Status: closed 2026-09-10 — not needed. The module is a shared piece of an open source
+    solution, so anyone with the rights can accept it and anyone can maintain it later
+    (D18). Note that acceptance now and maintenance later are separate acts; the two
+    blocking questions Q03 and Q04 still wait on people nobody has named.
 
 ## What stays unchanged
 
@@ -662,7 +765,9 @@ Read against core's `BACKWARD_COMPATIBILITY.md` (checked 2026-09-09 on the local
 ## Definition of Ready addendum (own idea, in a running platform)
 
 - Riskiest assumption: A03 (the core method lands). Test result: none yet. Recorded
-  decision to build without it: D05, confirmed by the owner on 2026-09-09.
+  decision to build without it: D05, reviewed and reaffirmed by the product owner on
+  2026-09-10, with the reasoning that a refusal changes where the code lives rather than
+  whether the work happens.
 - Existing-product items: migration and rollback path — see *Impact on existing data and
   users*; affected screens and user groups — only new screens (timeline, subjects, targets,
   settings, the unavailability form posting to planner); no existing screen changes.
@@ -675,9 +780,11 @@ Read against core's `BACKWARD_COMPATIBILITY.md` (checked 2026-09-09 on the local
 
 ## Collection plan
 
-No entries. The owner decided (D03) to write from documents; how often the problem occurs
-and what it costs stays unmeasured, and the brief says so where it matters (Problems, A01,
-A04).
+No entries, reaffirmed by the product owner on 2026-09-10. The brief is written from
+documents (D03); how often the problem occurs and what it costs stays unmeasured, and the
+brief says so where it matters (Problems, A04). The informal client conversations behind
+the site dispatch application are noted in Problems as origin, not as evidence, and no
+research is being commissioned to close the gap.
 
 ## Decision records (discovery session, 2026-09-09)
 
@@ -685,6 +792,10 @@ The protocol behind the session decisions cited above as `Decision records, Dnn`
 record: date and owner, the context and options weighed, the decision in the owner's own
 words, the consequences and what would make us revisit it. D08–D14, D16 and D17 rest on
 the PR documents and have no record here.
+
+The session of 2026-09-09 was answered by the developer. The product owner reviewed every
+question and answer on 2026-09-10; what she changed is recorded at the end of this
+section, under *Product owner's review*.
 
 ### D01 — Reservations as an Open Mercato module contributed by Evojam, not a dispatch feature
 
@@ -863,3 +974,72 @@ the PR documents and have no record here.
 - Consequences, and what would make us revisit it: Q07 closed; A07 accepted untested.
   Revisit when a user needs several zones inside one organization.
 - Status: active
+
+### Product owner's review, 2026-09-10
+
+- Date, owner: 2026-09-10, Marta Zieminska, product owner on the Evojam side.
+- Context: the discovery session of 2026-09-09 was answered by Jacek Zabilowicz, the
+  developer. Several of its questions were product, business or research questions rather
+  than technical ones, and in six places the agent supplied its own answer because no view
+  was offered. The product owner went through all twenty-four questions and answers.
+- What she changed, and why:
+  1. **The origin story (D01).** The brief read as though Evojam decided to donate a module
+     to Open Mercato. The actual order was the reverse: Evojam decided to build its own
+     application on Open Mercato, meant for other companies running the platform; that
+     application needed a Gantt view and assignment on it; the piece then turned out not to
+     be specific to it, so contributing it back became worthwhile.
+  2. **Two owners instead of one (header, D01–D19, R01–R14, N01–N07, Q09).** The brief put
+     one name on every decision. Product decisions and non-goals belong to the product
+     owner, technical decisions and business rules to the developer.
+  3. **The success date (D04, Q02).** "Six months after the first release" had no anchor,
+     because no release date exists. Replaced with six months to a year from 2026-09-10.
+  4. **Why there is no kill criterion (D05).** The recorded reason was that the team adapts
+     and hopes for acceptance. The real reason is that the capability is needed for Evojam's
+     own application, so it gets built regardless, and Open Mercato asked for it as a module
+     because they saw it as useful.
+  5. **The application exists (D18, A08, Vision).** It was recorded as not existing and
+     merely intended. It is being built alongside the module.
+  6. **Two assumptions are decisions (A01, A02).** Day scale is what can be delivered now,
+     with smaller granularity intended later; warning by default was chosen to keep the
+     module flexible across industries. Neither is an untested bet.
+  7. **The informal conversations (Problems, D03).** Evojam did speak to companies while
+     shaping the site dispatch application, including one needing equipment management on
+     building sites. Undocumented, and about that application rather than this module, so
+     recorded as origin and cited as evidence nowhere.
+- What she left alone: the vision sentence, the phase 1 and phase 2 split, the business
+  goal, the whole timezone design, the fallback if `vis-timeline` is refused, the treatment
+  of the core issue #4316 requester as demand rather than a user, and the file layout. The
+  timezone questions and the two-repository question were returned to the developer as
+  technical matters.
+- Consequences, and what would make us revisit it: the assumption map now has one clear top
+  risk, A03, which nobody at Evojam can settle. The success metric rests on a single known
+  party, `mmkozlowski`, who needs work that is deferred with no date; the brief keeps that
+  tension visible under D04 and Q08. Two questions stay with the developer, A05 and A06.
+- Status: active
+
+## Changelog
+
+### 2026-09-10
+- Reviewed by the product owner, Marta Zieminska, question by question against the
+  discovery session of 2026-09-09. Seven changes: the origin of the module (D01, the
+  application came first and the module was extracted from it); two named owners instead of
+  one, split product against technical (header, D01–D19, R01–R14, N01–N07, Q09); the
+  success date anchored to a real calendar window (D04, Q02); the real reason there is no
+  kill criterion (D05, Kill criteria); the site dispatch application recorded as under
+  construction rather than intended (Vision, D18, A08); A01 and A02 reclassified from
+  untested assumptions to deliberate decisions (Riskiest assumptions, Scope); the informal
+  client conversations recorded in Problems as origin and not as evidence (D03).
+- Corrections of fact: the PR #53 author and the PR #32 author are the same party
+  (`mmkozlowski`), checked against the GitHub API, so the success metric rests on one
+  interested party and not two (A04); the Q08 status now says the author was asked on
+  2026-09-09 and we are waiting.
+- Left open on purpose: no checkpoint for how long we wait on the core decision (D05); A05
+  and A06 returned to the developer as technical questions.
+- Coverage recounted from the tags in the file: 134 claims, still no interview or usage
+  data.
+
+### 2026-09-09
+- First version, written with `om-discover` in own-idea mode plus the three
+  existing-product sections, answered by the developer Jacek Zabilowicz. Added to PR #33 at
+  the maintainers' request.
+

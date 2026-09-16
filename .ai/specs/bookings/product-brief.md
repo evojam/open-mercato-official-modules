@@ -4,22 +4,23 @@
   three existing-product sections added because the module lands in a running platform
   (What stays unchanged, Impact on existing data and users, Compatibility surfaces touched)
 - Owners: Marta Zieminska (product owner, Evojam) for product decisions and non-goals;
-  Jacek Zabilowicz (JacekZ96, Evojam) for technical decisions and business rules. A team
+  Jacek (JacekZ96, Evojam) for technical decisions and business rules. A team
   works on the module alongside them.
 - Coverage: 134 claims — 131 sourced (interview 0, data 0, document 61, product 67, benchmark 3), 0 synthetic, 3 assumed; 0 entries on the collection plan
-- Definition of Ready signed by: Marta Zieminska (product owner) and Jacek Zabilowicz
+- Definition of Ready signed by: Marta Zieminska (product owner) and Jacek
   (developer), 2026-09-10; riskiest assumption A03 accepted untested (D05). The
   assumptions were reviewed by the product owner on 2026-09-10: A01 and A02 are resolved
   as deliberate decisions, A03 stands as the top risk, A05 and A06 wait on the developer
-- Location: `.ai/specs/reservations/` — this repository hosts many independent modules, so
+- Location: `.ai/specs/bookings/` — this repository hosts many independent modules, so
   the brief lives in the module's own folder rather than at `.ai/specs/product-brief.md`,
   where one brief per repository would collide with the next module's. The decision
   records from the session are kept in this file (last section) instead of separate files
   under `research/decisions/`, so the PR carries one document. The file name and structure
   follow the `om-discover` contract; the folder can move on the maintainers' request.
 - Sources:
-  - `.ai/specs/2026-08-10-reservations-module.md` — the spec, v3.1 of 2026-09-07
+  - `.ai/specs/2026-08-10-bookings-module.md` — the spec, v3.2 of 2026-09-16
   - PR #33 reviews by Mat Gren (2026-08-26, 2026-09-04)
+  - PR #33 comment by Patryk Lewczuk, core team (2026-09-12)
   - PR #33 author comments (2026-09-04, 2026-09-07 ×2)
   - PR #53 body and `SPEC-009-2026-08-21-appointment-layer.md` on its branch
   - PR #32 `2026-08-06-patient-cases-module.md` on its branch (the live-deployment evidence)
@@ -77,12 +78,12 @@ that one product. `[DOCUMENT]` Decision records, D18
 - Stakeholders (originates): Paweł Dybcio filed the v1 proposal in core (PDF, 2026-07-16)
   and announced the rewrite that became PR #33. `[DOCUMENT]` core PR #4207 comment 2026-08-03
 - Decider for scope decisions: Marta Zieminska (product owner) on the Evojam side, with
-  Jacek Zabilowicz deciding the technical shape; acceptance itself sits with the Open
+  Jacek deciding the technical shape; acceptance itself sits with the Open
   Mercato maintainers through the review of PR #33.
   `[DOCUMENT]` Decision records, D01 and the review of 2026-09-10
-- Two roles sign on the Evojam side: Marta Zieminska as product owner, and Jacek
-  Zabilowicz as the developer who signs the technical decisions day to day, as the one
-  currently building the module. Not Pawel Dybcio, who filed the v1 proposal. (Q09)
+- Two roles sign on the Evojam side: Marta Zieminska as product owner, and Jacek as the
+  developer who signs the technical decisions day to day, as the one currently building
+  the module. Not Pawel Dybcio, who filed the v1 proposal. (Q09)
 
 ## Problems, with evidence
 
@@ -184,13 +185,15 @@ Benchmark (each checked on 2026-09-09):
   unavailability conflicts with a per-organization policy (advisory default, reject per
   category); coverage-gap warnings with a threshold; the organization's working calendar
   and time zone; permanent targets picked from a list; subjects from `resources` and
-  `staff` through provider plugins; a day-scale timeline with one row per subject; exactly
-  one participant written per reservation. `[PRODUCT]` spec §4, §6, §7.2, §9
-  — confirmed as phase 1 by the owner. `[DOCUMENT]` Decision records, D06
+  `staff` through provider plugins; a day-scale timeline with one row per subject;
+  several participants per reservation in the model and the API, exactly one written by the
+  screen; no-show as a closed status. `[PRODUCT]` spec §4, §6, §7.1, §7.2, §9
+  — confirmed as phase 1 by the owner. `[DOCUMENT]` Decision records, D06; team decision
+  2026-09-15, accepted by the maintainers
 - **Later (phase 2 and after):** a rules engine; qualification matching; requests and
   assignment from the target side; cascading moves; capacity (seats); an hourly axis;
-  calendar exceptions per subject; minute-level scheduling, buffers, non-attendance as its
-  own state, availability computed from rules; a second participant in the UI.
+  calendar exceptions per subject; minute-level scheduling, buffers, availability computed
+  from rules; a second participant in the UI.
   `[PRODUCT]` spec §4, §7.2 — "not rejected forever, just not now"
 - **Later:** extracting the shared overlap core out of the `customers` calendar into
   `shared`, as a separate core change with its own tests.
@@ -215,8 +218,8 @@ Each term: meaning · owned by · visible to. Sources: spec §2, §6, §7, §9, 
   from a list, extended by the product · reservations (name only) · dispatcher
 - **Reservation** — "{subject} is busy from {from} to {to}, for {target}"; may exist
   without dates · reservations · dispatcher, other modules via the occupancy service
-- **Participant** — one subject's part in a reservation, with a role; phase 1 writes one
-  per reservation · reservations · engine, timeline
+- **Participant** — one subject's part in a reservation, with a role; the API takes
+  several, the phase 1 screen writes one · reservations · engine, timeline
 - **Unplaced** — a reservation with no dates yet; a normal state · reservations ·
   dispatcher ("unplaced" list)
 - **Provider (plugin)** — the adapter between the module and one registry: create, name
@@ -266,12 +269,13 @@ Each term: meaning · owned by · visible to. Sources: spec §2, §6, §7, §9, 
 
 ## Business rules
 
-Every rule: owner Jacek Zabilowicz (developer) · status active · required path to change:
+Every rule: owner Jacek (developer) · status active · required path to change:
 a superseding row approved by the owner plus a spec changelog entry. Review by: after
 phase 1 ships, unless the entry says otherwise.
 
-- **R01** — A reservation occupies its participants; phase 1 writes exactly one
-  participant, the table allows several.
+- **R01** — A reservation occupies its participants; the model, the engine and the API
+  take several from phase 1, the phase 1 screen writes exactly one. Superseded wording
+  of 2026-09-09 ("phase 1 writes exactly one") by D20.
   - Applies to: reservations, engine · Source: `[PRODUCT]` spec §7.2
 - **R02** — Intervals are closed on the left, open on the right; touching intervals do not
   conflict.
@@ -353,7 +357,7 @@ after phase 1 ships, unless the entry says otherwise.
 ## Decisions
 
 Owners split by kind, as agreed on 2026-09-10: **Marta Zieminska (product owner)** owns
-D01 to D07, D18 and D19; **Jacek Zabilowicz (developer)** owns D08 to D17. Every decision:
+D01 to D07, D18 and D19; **Jacek (developer)** owns D08 to D17. Every decision:
 status active · required path to change: a superseding row approved by its owner, unless
 the entry says otherwise.
 
@@ -433,7 +437,7 @@ the entry says otherwise.
     `[DOCUMENT]` PR #33 comment 2026-09-04
   - Shape accepted with two conditions by Mat Gren.
     `[DOCUMENT]` PR #33 review 2026-09-04, "Your two questions"
-  - Owner: Jacek Zabilowicz; confirmed by Mat Gren (reviewer)
+  - Owner: Jacek; confirmed by Mat Gren (reviewer)
   - Review by: when the core PR for the method merges
   - Required path to change: superseding row approved by the owner and the planner maintainers
 - **D09** (2026-09-04) — Conflict policy is data — `advisory` or `reject` — instead of
@@ -549,7 +553,7 @@ says otherwise.
   - If false: the module copies rule expansion or waits; D05 says the team adapts
   - Smallest test: open the core spec and PR; the maintainers' first review is the test
   - By when: when PR #33 is accepted
-  - Owner: Jacek Zabilowicz (developer)
+  - Owner: Jacek (developer)
   - Result: accepted untested (D05). Reviewed on 2026-09-10 and confirmed as the top risk:
     it is the only assumption nobody on the Evojam side can settle. A refusal does not stop
     the work, it changes where the code lives (D05).
@@ -569,7 +573,7 @@ says otherwise.
 - **A05** — The team can carry two repositories at once — the core PR for the method and
   the module.
   - Importance: medium
-  - Owner: Jacek Zabilowicz (developer). Put to the product owner on 2026-09-10 and
+  - Owner: Jacek (developer). Put to the product owner on 2026-09-10 and
     returned as a technical question she cannot answer; it stays open until the developer
     does.
   - Evidence today: none
@@ -586,7 +590,7 @@ says otherwise.
     may need to follow the new anchoring
   - Smallest test: follow #5862; re-read spec §5 and §8 when it resolves
   - By when: when #5862 resolves
-  - Owner: Jacek Zabilowicz (developer); left with him by the product owner on 2026-09-10
+  - Owner: Jacek (developer); left with him by the product owner on 2026-09-10
 - **A07** — One time zone per organization is enough.
   - Importance: low
   - Evidence today: none; the owner raised the point in the session ("one company can
@@ -673,17 +677,17 @@ None: no persona walkthrough or simulated interview was run, so nothing carries 
     change on our side.
 - **Q07** — A company operating in several time zones: several organizations each with its
   own zone, or a per-site zone the spec does not have?
-  - Blocking: no · Who can answer: Jacek Zabilowicz (developer), with the first multi-site
+  - Blocking: no · Who can answer: Jacek (developer), with the first multi-site
     user; reviewed and left with him by the product owner on 2026-09-10
   - Status: closed 2026-09-09 — D19: one organization = one time zone for now; a company
     with sites in several zones creates several organizations
 - **Q08** — Does the author of PR #53 accept phase 1 plus the deferred list as their
   acceptance criteria (their Q1)?
   - Blocking: no for this module; yes for theirs · Who can answer: the PR #53 author
-  - Where their six requirements stand: participants (3) and server-side rejection (4) are
-    in phase 1; availability from planner rules (6) is how the module reads unavailability;
-    minute-level scheduling (1), per-type duration and buffers (2) and no-show as its own
-    state (5) are phase 2 (spec §4).
+  - Where their six requirements stand: participants (3), server-side rejection (4) and
+    no-show as its own state (5) are in phase 1; availability from planner rules (6) is how
+    the module reads unavailability; minute-level scheduling (1) and per-type duration and
+    buffers (2) are phase 2 (spec §4).
   - Owner's stance (2026-09-09): minute scale will come, probably in phase 2 — the data is
     already timestamps, it is a matter of polishing; a no-show state makes sense and may
     be added, the topic can return; per-type buffers only make sense once the scale is
@@ -696,13 +700,13 @@ None: no persona walkthrough or simulated interview was run, so nothing carries 
     in the meantime, or the metric rests on a consumer we have not met yet.
 - **Q09** — Who beyond the owner co-signs scope on the Evojam side — the originator of v1,
   a project manager, nobody?
-  - Blocking: no · Who can answer: Jacek Zabilowicz
+  - Blocking: no · Who can answer: Jacek
   - Status: closed 2026-09-10 — Marta Zieminska, product owner on the Evojam side. Not
-    Pawel Dybcio, who filed the v1 proposal. Jacek Zabilowicz is the developer and signs
+    Pawel Dybcio, who filed the v1 proposal. Jacek is the developer and signs
     the technical decisions day to day. Product decisions and non-goals sit with the
     product owner; technical decisions and business rules with the developer.
 - **Q10** — Is D15 signed (keep R13 and note core issue #5862 in the spec), or replaced?
-  - Blocking: no · Who can answer: Jacek Zabilowicz (developer)
+  - Blocking: no · Who can answer: Jacek (developer)
   - Status: closed 2026-09-09, reconfirmed 2026-09-10 — signed. The product owner reviewed
     it and left the timezone design with the developer.
 - **Q11** — Who decides acceptance by name — merging PR #33 in `official-modules` (merge
@@ -754,11 +758,11 @@ Read against core's `BACKWARD_COMPATIBILITY.md` (checked 2026-09-09 on the local
   `[PRODUCT]` spec §5; core `BACKWARD_COMPATIBILITY.md` §2, §9
 - §8 Database schema (additive-only): five new module-prefixed tables, no change to
   existing ones. `[PRODUCT]` spec §7, §14
-- §5 Event IDs (frozen once released): nine new `reservations.*` events, named in spec
+- §5 Event IDs (frozen once released): nine new `bookings.*` events, named in spec
   §12; none existing is touched. `[PRODUCT]` spec §12
-- §10 ACL feature IDs: three new `reservations.*` features. `[PRODUCT]` spec §12
-- §11 Notification type IDs: two new types, `reservations.conflict` and
-  `reservations.coverage_gap`. `[PRODUCT]` spec §12
+- §10 ACL feature IDs: three new `bookings.*` features. `[PRODUCT]` spec §12
+- §11 Notification type IDs: two new types, `bookings.conflict` and
+  `bookings.coverage_gap`. `[PRODUCT]` spec §12
 - Not touched: the `ScheduleItem.subjectType` union in `ui` — the earlier plan to widen it
   was dropped. `[DOCUMENT]` core PR #4207 review 2026-07-26 (Backward compatibility); `[PRODUCT]` spec §11
 
@@ -800,7 +804,7 @@ section, under *Product owner's review*.
 ### D01 — Reservations as an Open Mercato module contributed by Evojam, not a dispatch feature
 
 - Date, owner: 2026-08-10 (spec filed as PR #33); confirmed in the discovery session of
-  2026-09-09 by Jacek Zabilowicz, who makes the scope decisions on the Evojam side.
+  2026-09-09 by Jacek, who makes the scope decisions on the Evojam side.
   Acceptance itself rests with the Open Mercato maintainers through the review of PR #33.
 - Context and the options weighed: the idea was first filed in core as
   `open-mercato/open-mercato` PR #4207 on 2026-07-16 by Paweł Dybcio (a Polish PDF); the
@@ -819,7 +823,7 @@ section, under *Product owner's review*.
 
 ### D02 — Free open-source contribution; nobody pays; goal: Evojam's visibility and advancing OM
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: the discovery session asked whether a paying client
   stands behind the dispatch product and what Evojam gains from giving the module away.
   Options named: less own code to maintain in dispatch, influence on the direction of
@@ -834,7 +838,7 @@ section, under *Product owner's review*.
 
 ### D03 — This brief rests on documents, not interviews; no collection is planned for it
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: no interview notes, usage data or support extracts exist
   in the repository. The session offered to put "two interviews with a dispatcher, via the
   project manager" on a collection plan. The owner had not done such research himself and
@@ -851,7 +855,7 @@ section, under *Product owner's review*.
 
 ### D04 — Success means at least one consumer outside Evojam builds on the module
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: (a) the spec is merged by the maintainers; (b) the
   dispatch application runs the module in production as its only source of occupancy;
   (c) a consumer outside Evojam builds on the module.
@@ -865,7 +869,7 @@ section, under *Product owner's review*.
 
 ### D05 — No kill criterion: the team adapts to the maintainers' review until the spec is accepted
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: two open questions in the spec could stop the work — the
   maintainers refusing the planner read method, or refusing `vis-timeline`. The session
   asked which result means "stop or plan B" and who calls it.
@@ -878,7 +882,7 @@ section, under *Product owner's review*.
 
 ### D06 — Spec §4 "first version" is phase 1; every deferred item is phase 2 or later, not rejected
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: spec §4 lists what is in the first version and what is
   not ("not rejected forever — just not now"). PR #53 asks for five of the deferred items
   (minute-level scheduling, buffers, non-attendance state, availability from rules, plus
@@ -889,11 +893,11 @@ section, under *Product owner's review*.
   follow §4; the non-goals are the spec's permanent stances, not the deferred list.
   Revisit after phase 1 ships, or if PR #53's author needs a deferred item to adopt the
   module (Q08).
-- Status: active
+- Status: active; no-show moved to phase 1 by D20
 
 ### D07 — The module's final shape will evolve in the open; rework after phase 1 is acceptable
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: the session asked which assumptions, if false, would
   force a rework. The owner's stance is that the current design is a set of project
   assumptions with no guarantee they hold as the module grows in open source.
@@ -908,7 +912,7 @@ section, under *Product owner's review*.
 
 ### D12 addendum — Fallback if the maintainers refuse `vis-timeline`
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context: D12 (2026-09-04) chose `vis-timeline`; the reviewer recommended yes but left
   the call to the maintainers (Q03). The session asked what we do if they refuse.
 - Decision and why: the owner's words — "my wyraziliśmy swoją opinię i swoje powody
@@ -921,7 +925,7 @@ section, under *Product owner's review*.
 
 ### D15 — Keep the middle-of-window rule (R13, spec §8); note core issue #5862 in the spec
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: spec §8 reads the day of an all-day planner window from
   its middle in the organization's zone, because planner's write paths anchor midnight to
   different zones. On 2026-09-03 core issue #5862 was filed for exactly that defect, and
@@ -937,7 +941,7 @@ section, under *Product owner's review*.
 
 ### D18 — The dispatch application does not exist yet; Evojam intends to build it on the module
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: the skeptic's cold read found that the vision named
   "Evojam's dispatch application" as the first product and that two assumption tests
   (A01, A02) relied on its first production month, while no source showed the application
@@ -961,7 +965,7 @@ section, under *Product owner's review*.
 
 ### D19 — One organization = one time zone, for now
 
-- Date, owner: 2026-09-09, Jacek Zabilowicz
+- Date, owner: 2026-09-09, Jacek
 - Context and the options weighed: spec §8 keeps one time zone per organization (R04). The
   owner had remarked earlier that one company can operate in more than one zone (A07,
   Q07). Options: (a) one zone per organization, several sites in several zones = several
@@ -975,10 +979,32 @@ section, under *Product owner's review*.
   Revisit when a user needs several zones inside one organization.
 - Status: active
 
+### D20 — Identifier `bookings`; participants as a list in the model and the API, one on the screen; `no_show` in phase 1
+
+- Date, owner: 2026-09-15, Marta Zieminska (product), Jacek (technical)
+- Context and the options weighed: the core team's comment on PR #33 (2026-09-12) asked
+  for the rename — "reservation" in Open Mercato already means stock held back in the
+  warehouse — and for five smaller items: several participants in the first version, a
+  no-show status, timeline filters, the reason of a conflict, and notifications that go
+  away with the conflict. For participants the options were (a) one participant everywhere
+  in phase 1, as in D10; (b) several in the model, the engine and the API, one on the
+  screen; (c) several everywhere, including the screen.
+- Decision and why: (b) — the routes are a stable surface, so the shape must take a list
+  from day one, while the screen stays small; the maintainers accepted this middle path.
+  `no_show` moves from the deferred list (D06) to phase 1: a status is a text value, so
+  adding it costs one entry, and the PR #53 consumer asked for it (Q08). The identifier
+  `bookings` was proposed by the core team and accepted by the product owner; the
+  reviewer's confirmation is still to come. The other three items are technical and taken
+  as proposed.
+- Consequences, and what would make us revisit it: D06 and D10 stay as history; Scope,
+  R01, Q08 and the compatibility surfaces follow this record; spec v3.2. Revisit the
+  screen part when a consumer needs a second participant in the form (phase 2).
+- Status: active
+
 ### Product owner's review, 2026-09-10
 
 - Date, owner: 2026-09-10, Marta Zieminska, product owner on the Evojam side.
-- Context: the discovery session of 2026-09-09 was answered by Jacek Zabilowicz, the
+- Context: the discovery session of 2026-09-09 was answered by Jacek, the
   developer. Several of its questions were product, business or research questions rather
   than technical ones, and in six places the agent supplied its own answer because no view
   was offered. The product owner went through all twenty-four questions and answers.
@@ -1019,6 +1045,15 @@ section, under *Product owner's review*.
 
 ## Changelog
 
+### 2026-09-16
+- Follow-up to the core team comment of 2026-09-12 and the spec v3.2: module identifier
+  `bookings` (folder, spec file name, event, ACL and notification identifiers; product
+  wording unchanged); several participants per reservation in the model and the API with one
+  written by the screen, and no-show as a closed status moved to phase 1 (Scope, R01,
+  Q08, D20). Participants and no-show: decided by the team on 2026-09-15, the middle path
+  accepted by the maintainers. The identifier was proposed by the core team; the
+  reviewer's confirmation is pending.
+
 ### 2026-09-10
 - Reviewed by the product owner, Marta Zieminska, question by question against the
   discovery session of 2026-09-09. Seven changes: the origin of the module (D01, the
@@ -1040,6 +1075,6 @@ section, under *Product owner's review*.
 
 ### 2026-09-09
 - First version, written with `om-discover` in own-idea mode plus the three
-  existing-product sections, answered by the developer Jacek Zabilowicz. Added to PR #33 at
+  existing-product sections, answered by the developer Jacek. Added to PR #33 at
   the maintainers' request.
 

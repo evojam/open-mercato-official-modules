@@ -1,4 +1,4 @@
-# Reservations module for Open Mercato
+# Bookings module for Open Mercato
 
 This is a new version of the proposal. It replaces the previous specification and answers the
 review.
@@ -8,6 +8,10 @@ reservations that overlap and reservations that fall into unavailability. It war
 reservation without dates gets close to its start day. It shows everything on a timeline with
 one row per subject. It stands on the existing registries of resources and people, and on the
 availability schedules. To the schedules it adds one read method.
+
+The module identifier is `bookings`, not `reservations`: in Open Mercato a reservation already
+means stock held back in the warehouse. This document keeps the word "reservation" for the
+thing the module stores; only identifiers say booking.
 
 ---
 
@@ -93,6 +97,10 @@ reality. One calendar per organization, no exceptions for single subjects.
 
 **Reservation target.** Light and generic, extended with product fields.
 
+**Several participants per reservation** — in the model, the engine and the API from the first
+version. The screen writes one participant; a second one is a screen change, not a contract
+change (section 7.2).
+
 **Timeline with one row per subject.** Day scale.
 
 Five things can be configured:
@@ -128,10 +136,10 @@ store dates to the second anyway.
 
 **Calendar exceptions for a single subject or target** — for now one calendar per organization.
 
-**Minute-level granularity, buffers between reservations, non-attendance as its own terminal
-state, and availability computed from work rules** — these are requirements from a separate
-appointments document. All of them can be added without a model change, so they wait for the
-next version.
+**Minute-level granularity, buffers between reservations, and availability computed from work
+rules** — these are requirements from a separate appointments document. All of them can be
+added without a model change, so they wait for the next version. Non-attendance as its own
+closed state came from the same document and is in (section 7.1).
 
 One thing that is easy to confuse with cascading moves: **the view of free subjects stays in the
 first version.** When a date collides or a target is left without a subject, the timeline still
@@ -346,8 +354,8 @@ deleted. The last change date has one more role: the system uses it to detect th
 edited the same record at the same time.
 
 Table names start with the module name and are plural, as everywhere in Open Mercato:
-`reservations_reservations`, `reservations_participants`, `reservations_targets`,
-`reservations_settings`, `reservations_subjects`.
+`bookings_bookings`, `bookings_participants`, `bookings_targets`, `bookings_settings`,
+`bookings_subjects`.
 
 ### 7.1 Reservation
 
@@ -355,7 +363,7 @@ Table names start with the module name and are plural, as everywhere in Open Mer
 |---|---|
 | target | pointer to a target row; required |
 | from / to | time window: the start of the first day and the start of the day after the last one, in the company's time zone; both empty means the reservation waits to be placed |
-| status | planned, active, completed, cancelled |
+| status | planned, active, completed, cancelled, no_show |
 | duration | in working days, in steps of half a day |
 | expected start | the date by which the reservation must be on the timeline; always required |
 | last reported warning | how many working days were left at the last signal, zero when the deadline has passed; empty when nothing was reported |
@@ -367,19 +375,22 @@ interface "unplaced". It is not broken and not wrong.
 **Status is not the same as placement.** A reservation can be active and still unplaced, or only
 planned but already on the timeline.
 
-Statuses split into open (planned, active) and closed (completed, cancelled). Allowed
-transitions:
+Statuses split into open (planned, active) and closed (completed, cancelled, no_show). No-show
+is the third way to close: the target did not turn up. The slot is freed, but the work was
+neither done nor called off, so reports count it apart from cancellations. Allowed transitions:
 
 ```
 planned    → active                     someone confirms the work has started
-open       → completed | cancelled      closing is allowed from any open state
+open       → completed | cancelled | no_show
+                                        closing is allowed from any open state
 completed  → planned | active           undoing a mistake
+no_show    → planned | active           undoing a mistake
 cancelled  → nothing                    terminal state; a restart is a new reservation
 ```
 
 Every other transition is rejected. Occupancy and conflicts count only open reservations.
-Bringing a completed reservation back to open restores occupancy and follows the same rules as
-placing (section 9).
+Bringing a completed or no-show reservation back to open restores occupancy and follows the
+same rules as placing (section 9).
 
 A person or the product changes the status, never the passing of time. The module does not flip a
 reservation to "active" at midnight on the start day — it could not do that for a reservation
@@ -420,20 +431,24 @@ reservation created directly on the timeline gets an expected start equal to its
 | subject | pointer to a row in the subjects list (section 6) |
 | role | performer, place, supporting equipment |
 
-The role comes from a closed list. The first version always writes "performer". The same subject
-cannot appear twice in one reservation — it would conflict with itself.
+The role comes from a closed list. The first version's screen always writes "performer". The
+same subject cannot appear twice in one reservation — it would conflict with itself.
 
 The reason: one reservation can take several things at once. A visit takes a doctor and a room, a
 service job takes a bay and a technician. If the subject sat in a column of the reservation, the
 only way out would be two separate reservations. Then cancelling one leaves the other busy,
 because nothing ties them together.
 
-**The first version always writes one participant.** There is no screen to add a second one. The
-point is only that adding it later does not require splitting a column into a table and
-rewriting every read, every conflict query and the whole timeline.
+**The model, the engine and the API take a list of participants from the first version.** The
+write commands accept one or more participants, each with a role; at least one is required.
+The occupancy service, the timeline read and the conflict read answer per participant. Only the
+first version's screen writes exactly one participant, with no field for a second one. Adding
+that field later is a screen change: the routes, the events and the tables do not move, so no
+consumer built on them has to follow.
 
 The engine counts occupancy separately for each participant. A reservation is in conflict if at
-least one of its participants is.
+least one of its participants is. Cancelling the reservation frees all of them at once; removing
+one participant leaves the others in place.
 
 ### 7.3 Subjects
 
@@ -609,8 +624,8 @@ no longer needed.
 ### What a conflict is
 
 Two reservations of the same subject that overlap in time, or a reservation that falls into its
-unavailability window. Planned and active reservations count — completed and cancelled ones free
-the slot.
+unavailability window. Planned and active reservations count — completed, cancelled and no-show
+ones free the slot.
 
 A conflict concerns a pair, and detection is symmetric — it does not matter which was written
 second. The write outcome is not symmetric: in reject mode the one who writes later loses.
@@ -651,6 +666,12 @@ the result comes back in the response, because the screen has to show what happe
 as the write — after the commit there would be nothing left to refuse. Conflicts with
 unavailability are computed in both modes after the commit and returned in the response, because
 they never block.
+
+The same recomputation after a write decides what happens to open notifications. When a
+subject of the written reservation has no conflict left, its conflict notification is removed
+for every recipient (section 12). Placing or closing a reservation does the same for the
+coverage gap notification of its target, when the target has no other unplaced reservation
+inside the threshold.
 
 Not in the background on an event — background delivery can be delayed and retried, so there is
 no certainty that anyone computed that conflict.
@@ -705,8 +726,8 @@ A reservation can exist without dates — it is a commitment that has no window 
 working days are left until the expected start and the reservation is still unplaced, the module
 emits a signal "in X days". The settings say what X should be.
 
-This applies only to planned and active reservations. A cancelled or completed one needs no
-subject, so it does not warn.
+This applies only to planned and active reservations. A closed one needs no subject, so it does
+not warn.
 
 It is a warning, not an action. It blocks nothing and assigns nothing by itself.
 
@@ -763,6 +784,11 @@ reservation was written after it. The scan reports only new conflicts, so a stan
 dispatcher has already seen is not reported again the next morning, and a dismissed notification
 stays dismissed. The event carries a grouping key, and the notifications layer merges repeats
 that arrive while the notification is still open (section 12).
+
+The scan also removes what is no longer true: a conflict notification whose subject is clean
+over the horizon, and a coverage gap notification whose target has no unplaced reservation
+inside the threshold. A leave cancelled in HR or a bar moved away clears the dispatcher's list
+by the next scan at the latest; a write on our side clears it at once.
 
 The scan looks ahead over a fixed horizon: for unplaced reservations up to the warning threshold,
 for conflicts with unavailability the next ninety days — the range the timeline screen opens by
@@ -864,7 +890,9 @@ A light component fed by properties, with no knowledge of the domain. It knows n
 reservations, subjects or any module: it gets rows, bars, days to grey out, and labels.
 
 One row is one subject, reservations are bars, conflicts are marked, free days in the background.
-Day scale now, hourly later — with no data change, because we store dates as instants anyway.
+A reservation with several participants is one bar in each participant's row; dragging any of
+them moves the whole reservation. Day scale now, hourly later — with no data change, because we
+store dates as instants anyway.
 
 ### `vis-timeline` as a conscious decision
 
@@ -926,14 +954,15 @@ targets                      plain write and read through the route factory
 subjects                     read and list through the factory; adding goes through the
                              provider plugin, because the record is created in its registry
                              (section 6)
-reservations                 list, details, editing single fields
+reservations                 list, details, editing single fields; create takes one or more
+                             participants
 place / move / resize / change status
                              undoable commands; cancel is an alias of a status change
 timeline read                one request: subject rows, reservation bars, unavailability
-                             windows and calendar state; paged by rows, filtered by subject
-                             category
-conflict read                conflicts of subjects in a date range; the screen calls it after
-                             a window write
+                             windows and calendar state; paged by rows; filters: subject
+                             category, only rows with a conflict, hide unavailable subjects
+conflict read                conflicts of subjects in a date range, each with its kind and
+                             the other side; the screen calls it after a window write
 "unplaced" list              a separate, cheap read of reservations without dates
 settings                     read and write
 occupancy for other modules  a service available through dependency injection (below)
@@ -945,6 +974,14 @@ The timeline read is one request on purpose: the screen needs all four things at
 separate queries would give flicker and four different moments in time. The category filter gives
 the view of free subjects from section 2: the same rows, and you can see which ones have no bar in
 a given window.
+
+Every conflict the module returns — in the timeline read, the conflict read and the write
+response — says what kind it is and what it collides with. For an overlap: the other
+reservation and its target. For unavailability: the window with its dates and, where the rule
+has one, its reason. A bar can carry both at once, so it is a list. In advisory mode a person
+decides, and without the other side there is nothing to decide on. The two extra filters serve
+the same person: "only conflicts" for the morning check, "hide unavailable" when looking for a
+free subject.
 
 ### Occupancy service
 
@@ -963,10 +1000,10 @@ same overlap check, so it will not restore a conflict that a normal write would 
 ### Write and conflict
 
 In advisory mode a write that creates a conflict **is not an error**. It succeeds, and the list of
-conflicts comes back in the response.
+conflicts, in the shape above, comes back in the response.
 
-In reject mode the write fails and returns an error with the reason — which subject and which slot
-collide — so the screen can show it instead of saying "could not save".
+In reject mode the write fails and returns an error carrying the same list — which subject,
+which slot, with what — so the screen can show it instead of saying "could not save".
 
 ### Things that are easy to forget
 
@@ -986,36 +1023,38 @@ Names are a contract and do not change after release. Pattern: module, entity, a
 tense.
 
 ```
-reservations.reservation.created / .updated / .deleted
-reservations.reservation.placed / .moved / .resized / .cancelled
-reservations.conflict.detected
-reservations.coverage_gap.detected
+bookings.booking.created / .updated / .deleted
+bookings.booking.placed / .moved / .resized / .cancelled
+bookings.conflict.detected
+bookings.coverage_gap.detected
 ```
 
 Events about reservation changes also go to the browser, so open screens refresh by themselves,
-without a reload. Completing a reservation and bringing it back to open ride
-`reservations.reservation.updated` with the status change in the payload; only cancel has its
-own name, because it is the status change other modules react to.
+without a reload. Completing a reservation, marking a no-show and bringing it back to open ride
+`bookings.booking.updated` with the status change in the payload; only cancel has its own name,
+because it is the status change other modules react to.
 
 The module declares its own notification types, and the platform's infrastructure delivers them.
-The types are `reservations.conflict` and `reservations.coverage_gap`. Background jobs go through
-the `reservations-scan` queue. Notifications are merged by a grouping key: conflicts by subject,
+The types are `bookings.conflict` and `bookings.coverage_gap`. Background jobs go through the
+`bookings-scan` queue. Notifications are merged by a grouping key: conflicts by subject,
 gaps by target — so the dispatcher does not get ten notifications about the same excavator.
 
-Conflict and coverage notifications go to the holders of `reservations.manage_reservations` in
-the organization; nobody outside it sees them.
+Conflict and coverage notifications go to the holders of `bookings.manage_bookings` in the
+organization; nobody outside it sees them.
 
-A conflict notification is not retracted when the clash is fixed. The first version emits no
-"resolved" event, so the notification stays until the user dismisses it. Dismissal holds: the
-scan reports a conflict only once, when it is new (section 9), so nothing recreates the
-notification the next morning. Only the notification list can be stale: the timeline recomputes
-conflicts on every read, and the notification links to it, so one click shows the current state.
+A notification is removed for every recipient when what it reported is gone. Each one is
+created with the record it is about as its source: the subject for a conflict, the target for a
+coverage gap. When a write or the scan finds that subject clean, or that target with no
+unplaced reservation inside the threshold, the module deletes the notifications with that
+source through the platform's notification service (section 9). No "resolved" event and no
+table of reported facts is needed for this. Dismissal still holds: the scan reports a conflict
+only once, when it is new, so nothing recreates a dismissed notification the next morning.
 
 ### Permissions
 
-Three: view, manage reservations, manage settings. Their identifiers are `reservations.view`,
-`reservations.manage_reservations` and `reservations.manage_settings`. The occupancy service for
-other modules is called `reservationsOccupancyService`.
+Three: view, manage bookings, manage settings. Their identifiers are `bookings.view`,
+`bookings.manage_bookings` and `bookings.manage_settings`. The occupancy service for other
+modules is called `bookingsOccupancyService`.
 
 After the module is enabled, the administrator gets all three, and a regular employee gets view —
 the module works at once, without granting permissions by hand; in an existing installation after
@@ -1039,25 +1078,25 @@ This table is also the definition of done: until a row has coverage, the module 
 | read method in planner | windows from the subject's own rules; windows from the schedule's rules when the subject has none of its own; own rules switch the schedule off; one-off rules (leave) give windows that keep their stored start and duration, not snapped to the UTC day; empty result for a subject with no rules |
 | place / move / resize | end computed from duration and the working calendar, including 2.5 days = three days; rejection for a closed reservation; rejection on a stale version; placing clears the warning counter |
 | status change | every pair from the transition matrix: allowed ones pass, disallowed ones are rejected; closed ones free the slot; bringing a completed reservation back to open recomputes conflicts and can fail in reject mode |
-| participants | conflict counted separately for each participant; the same subject twice in one reservation is rejected |
+| participants | a reservation created through the API with two participants; conflict counted separately for each; the same subject twice in one reservation is rejected; no participant at all is rejected; cancelling frees both; removing one participant leaves the other busy |
 | interval bounds | touching reservations do not conflict; overlapping by one day conflicts; "to" before "from" rejected by the database |
-| conflicts, advisory mode | the write passes, conflicts come back in the response |
+| conflicts, advisory mode | the write passes, conflicts come back in the response with their kind and the other side: the other reservation and its target |
 | conflicts, reject mode | a second write for the same slot fails, and the error names the subject and the slot; two parallel writes — only one succeeds |
 | conflict policy | default mode from settings; a per-category exception wins; a reservation with participants from different categories gets the stricter mode; changing the setting changes the write behaviour |
-| conflict with unavailability | always warns, never blocks; on a reservation write it comes back in the response; a window written directly in planner is visible in the conflict read and detected by the scan |
+| conflict with unavailability | always warns, never blocks; on a reservation write it comes back in the response with the window's dates and reason; a window written directly in planner is visible in the conflict read and detected by the scan |
 | day of a planner window | a Monday leave stored at UTC midnight lands on Monday in a UTC+2 zone; an all-day inspection stored at Warsaw midnight lands on its own day, not the day before; a 23:00–01:00 window blocks both days; a reservation from Tuesday does not conflict with the Monday leave |
 | occupancy service | bulk answer shape per subject; open reservations only; unavailability not included; another organization's reservations not returned; a range longer than a year rejected |
 | undo | undo into a slot that now conflicts fails under `reject` and succeeds under `advisory` with the conflict returned |
-| timeline read | response shape: rows, bars, windows, calendar state; paging by rows; category filter; conflict computed on read; only subjects of the own organization |
+| timeline read | response shape: rows, bars, windows, calendar state; paging by rows; category filter; "only conflicts" leaves only rows with a conflict; "hide unavailable" drops subjects with an unavailability window inside the requested range; a reservation with two participants gives a bar in each of their rows; conflict computed on read; only subjects of the own organization |
 | "unplaced" list | reservations without dates, paged, own organization only |
 | settings | a read with no row returns the defaults and creates nothing; the first save creates the row; write and read; rejection of an invalid time zone; another organization's settings are not visible |
 | time zones | day resolved in the company's zone, not the browser's; both clock-change cases |
 | coverage gap, read | working days counted from the calendar (free days, holidays); a passed deadline gives the "overdue" state and zero days; the same result on the server and in the browser |
 | reconciliation scan | signal when the day count entered the threshold; a second run the same day emits no second one; an overdue reservation signals once; an organization is processed once per local date and a late tick does not skip a day; a conflict from a window with no event is detected; a conflict reported yesterday and unchanged is not reported again; a window beyond the horizon is not scanned |
 | events | each of the nine events emitted by the right write; reservation events reach the browser |
-| notifications | two conflicts of the same excavator merged into one notification; gaps merged by target; a dismissed conflict notification does not return after the next scan; recipients limited to the organization's holders of the manage permission |
+| notifications | two conflicts of the same excavator merged into one notification; gaps merged by target; a dismissed conflict notification does not return after the next scan; a conflict notification disappears for every recipient once the clashing reservation is moved away, by a write and by the scan; a coverage gap notification disappears after placing, but stays while the target has another unplaced reservation inside the threshold; recipients limited to the organization's holders of the manage permission |
 | permissions | a view role does not write; manage reservations without the planner right does not write a window; the administrator does |
-| board screen | rows and bars draw, conflicts are marked, the view refreshes after an event; the timeline library loads only on this screen |
+| board screen | rows and bars draw, conflicts are marked with their kind and the other side, the view refreshes after an event; a reservation with two participants draws in both rows and moves as one; the timeline library loads only on this screen |
 | forms | creating a reservation, saving a target, saving settings; the unavailability form sends the request to the planner endpoint and, after success, calls the conflict read (a contract test, not a pass through our server) |
 
 ## 14. Translations, logs, deployment
@@ -1194,8 +1233,9 @@ module is disabled. The previous version had a column for this but no mechanism.
 register through a plugin registry of the module, not through a key in the dependency container.
 
 **A reservation can take several things at once.** The subject moved from a column to a separate
-participants table. The first version always writes one, but adding a second one needs no
-rebuild.
+participants table. The model, the engine and the API take a list from the first version; only
+the screen writes one, so the second participant is a screen change and nothing released has
+to move.
 
 **A conflict can be rejected.** The behaviour is a setting: advisory or reject, advisory by
 default. The mode has a default for the organization and exceptions for chosen subject
@@ -1276,6 +1316,8 @@ cover five languages.
   specification and pull request follow this document.
 - Whether the eleven-hour limit of the day-of-window rule (section 8) ever matters. No known
   deployment is affected today; if one appears, the fix is on the planner write side.
+- Whether the maintainers confirm `bookings` as the module identifier. Today the rename is
+  text; after the first release it would follow the compatibility protocol.
 
 ### Risks
 
@@ -1292,6 +1334,18 @@ cover five languages.
 | reject mode relies on locks on subjects | the lock is held only for one transaction and covers single subjects, not the whole table; with several participants we take them in a fixed order, so two parallel writes do not block each other; the lock code asserts it runs inside the transaction |
 
 ## Changelog
+
+### 2026-09-16
+- Version 3.2, answering the comment of 12 September: the module identifier is `bookings` —
+  tables, events, permissions, notification types, queue and service renamed, the document
+  keeps the word reservation (note under the TLDR, sections 7, 12). Participants are a list in
+  the model, the engine and the API from the first version, the screen writes one (sections 4,
+  7.2, 11, 12, 13). `no_show` is a third closed status (sections 4, 7.1, 9, 12). Timeline
+  filters "only conflicts" and "hide unavailable" (sections 12, 13). Every returned conflict
+  carries its kind and the other side (sections 12, 13). Conflict and coverage gap
+  notifications are removed when what they reported is gone — the earlier "not retracted"
+  rested on the belief that this needs a table of reported facts, and it does not (sections 9,
+  12, 13).
 
 ### 2026-09-07
 - Version 3.1, answering the review of 4 September: the built-in plugins read their registries

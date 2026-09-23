@@ -54,7 +54,11 @@ Prose says "reservation" for the thing being booked; every identifier says `book
    a body `{ error, code, details }`. Reason: the platform's undo route passes only
    `CrudHttpError` through; any other error becomes a plain 400 "Undo failed" and loses the
    status and the reason.
-10. Entity classes go one per file in `data/entities/<domain>/<name>.entity.ts`, re-exported
+10. Booking statuses live in `lib/pure-engine/status.rule.ts`, not next to the entity: the
+    engine owns the lifecycle (which statuses hold a slot, which transitions are allowed) and
+    the entity imports the list for its `@Enum`. `detectConflicts` takes the status of every
+    placement and skips closed ones itself, so a caller cannot forget the filter.
+11. Entity classes go one per file in `data/entities/<domain>/<name>.entity.ts`, re-exported
     from the `data/entities.ts` barrel. Property order is `id` → scope (`organizationId`,
     `tenantId`) → relations → own columns → timestamps, because property order is column
     order in the generated migration.

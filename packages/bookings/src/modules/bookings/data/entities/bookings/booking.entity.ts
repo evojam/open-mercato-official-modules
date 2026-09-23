@@ -1,11 +1,6 @@
 import { Check, Entity, Enum, Index, ManyToOne, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
 import { BookingTarget } from '../targets/target.entity'
-
-export const BOOKING_STATUSES = ['planned', 'active', 'completed', 'cancelled', 'no_show'] as const
-
-export type BookingStatus = (typeof BOOKING_STATUSES)[number]
-
-export const OPEN_BOOKING_STATUSES = ['planned', 'active'] as const satisfies readonly BookingStatus[]
+import { BOOKING_STATUSES, type BookingStatus } from '../../../../../lib/pure-engine/status.rule'
 
 export const BOOKING_DURATION_UNITS = ['working_days', 'minutes'] as const
 

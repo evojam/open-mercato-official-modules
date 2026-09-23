@@ -1,8 +1,10 @@
-import { Entity, Index, ManyToOne, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
+import { Entity, Enum, Index, ManyToOne, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
 import { BookingSubject } from '../subjects/subject.entity'
 import { Booking } from './booking.entity'
 
-export type BookingParticipantRole = 'performer' | 'place' | 'supporting'
+export const BOOKING_PARTICIPANT_ROLES = ['performer', 'place', 'supporting'] as const
+
+export type BookingParticipantRole = (typeof BOOKING_PARTICIPANT_ROLES)[number]
 
 @Entity({ tableName: 'bookings_participants' })
 @Index({
@@ -12,10 +14,6 @@ export type BookingParticipantRole = 'performer' | 'place' | 'supporting'
 @Index({
   name: 'bookings_participants_subject_idx',
   properties: ['subject'],
-})
-@Index({
-  name: 'bookings_participants_booking_idx',
-  properties: ['booking'],
 })
 @Index({
   name: 'bookings_participants_booking_subject_uq',
@@ -38,7 +36,7 @@ export class BookingParticipant {
   @ManyToOne(() => BookingSubject, { fieldName: 'subject_id' })
   subject!: BookingSubject
 
-  @Property({ name: 'role', type: 'text', default: 'performer' })
+  @Enum({ name: 'role', items: () => BOOKING_PARTICIPANT_ROLES, type: 'text', default: 'performer' })
   role: BookingParticipantRole = 'performer'
 
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })

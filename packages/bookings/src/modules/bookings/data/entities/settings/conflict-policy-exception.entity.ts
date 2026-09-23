@@ -1,6 +1,6 @@
-import { Entity, Index, ManyToOne, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
+import { Entity, Enum, Index, ManyToOne, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
 import { BookingSubjectCategory } from '../subjects/category.entity'
-import type { BookingConflictPolicy } from './settings.entity'
+import { BOOKING_CONFLICT_POLICIES, type BookingConflictPolicy } from './settings.entity'
 
 @Entity({ tableName: 'bookings_conflict_policy_exceptions' })
 @Index({
@@ -10,7 +10,7 @@ import type { BookingConflictPolicy } from './settings.entity'
 @Index({
   name: 'bookings_conflict_policy_exceptions_category_uq',
   expression:
-    `create unique index "bookings_conflict_policy_exceptions_category_uq" on "bookings_conflict_policy_exceptions" ("tenant_id", "organization_id", "category_id") where "deleted_at" is null`,
+    `create unique index "bookings_conflict_policy_exceptions_category_uq" on "bookings_conflict_policy_exceptions" ("organization_id", "tenant_id", "category_id") where "deleted_at" is null`,
 })
 export class BookingConflictPolicyException {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
@@ -25,7 +25,7 @@ export class BookingConflictPolicyException {
   @ManyToOne(() => BookingSubjectCategory, { fieldName: 'category_id' })
   category!: BookingSubjectCategory
 
-  @Property({ name: 'mode', type: 'text', default: 'reject' })
+  @Enum({ name: 'mode', items: () => BOOKING_CONFLICT_POLICIES, type: 'text', default: 'reject' })
   mode: BookingConflictPolicy = 'reject'
 
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })

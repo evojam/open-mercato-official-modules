@@ -85,3 +85,38 @@ this package follows its own structure rule instead, and the same domain split i
 Core reaches for `jsonb` for small lists. Nothing in this module has a variable shape, so
 `jsonb` would only cost the type and the constraints. Every list here is either a table
 (D3, D4) or a set of typed columns (D5).
+
+### D8 — Duration is a value plus a unit, and both units exist from day one
+
+*spec §4, §7.1*
+
+The specification stores a duration in working days, in steps of half a day, and defers
+minute-level scheduling to a later phase. The column is `duration_value` with a
+`duration_unit` of `working_days` or `minutes`; the first version writes only `working_days`,
+and the half-day rule is part of the check only for that unit:
+
+```sql
+duration_value > 0 and (duration_unit <> 'working_days' or duration_value * 2 = floor(duration_value * 2))
+```
+
+A working day is a calendar unit, not a length of time — two working days across a weekend
+span four calendar days — so minutes cannot be derived from it later. Adding a second column
+then would leave the "exactly one of two columns" shape the review already made us remove from
+the target. Carrying `minutes` in the check now means the later switch is a change in the
+screen and the engine, with no migration. The window columns are already `timestamptz`, so a
+booking of 13:30–14:00 needs nothing else from the schema.
+
+This is the same principle the review applied to participants: the first version writes one
+shape, but the model allows the second.
+
+### D9 — The timeline is built on `vis-timeline` before the dependency is signed off
+
+*spec §11, §16*
+
+The specification proposes `vis-timeline` and leaves the decision to the maintainers; the
+review of 4 September recommends accepting it. The timeline is built on that library now
+rather than after the answer, because waiting buys nothing and the cost of being wrong is
+known and small: the library is loaded lazily, every import of it lives in
+`lib/timeline/vis-timeline.adapter.ts`, and a guard test fails both an import outside that
+file and an adapter that holds no import at all. A refusal therefore means rewriting one
+file, not the timeline.

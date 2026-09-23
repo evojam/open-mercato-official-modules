@@ -8,7 +8,7 @@ import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legac
 @Index({
   name: 'bookings_subject_categories_org_name_uq',
   expression:
-    `create unique index "bookings_subject_categories_org_name_uq" on "bookings_subject_categories" ("tenant_id", "organization_id", lower("name")) where "deleted_at" is null`,
+    `create unique index "bookings_subject_categories_org_name_uq" on "bookings_subject_categories" ("organization_id", "tenant_id", lower("name")) where "deleted_at" is null`,
 })
 export class BookingSubjectCategory {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })

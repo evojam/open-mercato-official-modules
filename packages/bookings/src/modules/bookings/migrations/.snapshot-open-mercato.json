@@ -42,17 +42,37 @@
           "enumItems": [],
           "mappedType": "datetime"
         },
-        "duration_working_days": {
-          "name": "duration_working_days",
-          "type": "numeric(4,1)",
+        "duration_unit": {
+          "name": "duration_unit",
+          "type": "text",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
           "unique": false,
           "length": null,
-          "precision": 4,
-          "scale": 1,
+          "precision": null,
+          "scale": null,
+          "default": "'working_days'",
+          "comment": null,
+          "collation": null,
+          "enumItems": [
+            "working_days",
+            "minutes"
+          ],
+          "mappedType": "enum"
+        },
+        "duration_value": {
+          "name": "duration_value",
+          "type": "numeric(8,2)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": 8,
+          "scale": 2,
           "default": null,
           "comment": null,
           "collation": null,
@@ -192,8 +212,14 @@
           "default": "'planned'",
           "comment": null,
           "collation": null,
-          "enumItems": [],
-          "mappedType": "text"
+          "enumItems": [
+            "planned",
+            "active",
+            "completed",
+            "cancelled",
+            "no_show"
+          ],
+          "mappedType": "enum"
         },
         "target_id": {
           "name": "target_id",
@@ -249,6 +275,15 @@
       },
       "indexes": [
         {
+          "columnNames": [],
+          "composite": false,
+          "constraint": false,
+          "keyName": "bookings_bookings_open_window_idx",
+          "primary": false,
+          "unique": false,
+          "expression": "create index \"bookings_bookings_open_window_idx\" on \"bookings_bookings\" (\"organization_id\", \"start_at\", \"end_at\") where \"deleted_at\" is null and \"status\" in ('planned', 'active')"
+        },
+        {
           "columnNames": [
             "organization_id",
             "expected_start_on"
@@ -268,18 +303,6 @@
           "composite": true,
           "constraint": false,
           "keyName": "bookings_bookings_org_tenant_deleted_idx",
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
-            "organization_id",
-            "start_at",
-            "end_at"
-          ],
-          "composite": true,
-          "constraint": false,
-          "keyName": "bookings_bookings_org_window_idx",
           "primary": false,
           "unique": false
         },
@@ -306,9 +329,26 @@
       ],
       "checks": [
         {
-          "name": "bookings_bookings_duration_half_day_chk",
-          "expression": "\"duration_working_days\" > 0 and (\"duration_working_days\" * 2) = floor(\"duration_working_days\" * 2)",
-          "definition": "check (\"duration_working_days\" > 0 and (\"duration_working_days\" * 2) = floor(\"duration_working_days\" * 2))"
+          "name": "bookings_bookings_duration_chk",
+          "expression": "\"duration_value\" > 0 and (\"duration_unit\" <> 'working_days' or (\"duration_value\" * 2) = floor(\"duration_value\" * 2))",
+          "definition": "check (\"duration_value\" > 0 and (\"duration_unit\" <> 'working_days' or (\"duration_value\" * 2) = floor(\"duration_value\" * 2)))"
+        },
+        {
+          "name": "bookings_bookings_duration_unit_check",
+          "expression": "\"duration_unit\" in ('working_days', 'minutes')",
+          "definition": "check (\"duration_unit\" in ('working_days', 'minutes'))",
+          "columnName": "duration_unit"
+        },
+        {
+          "name": "bookings_bookings_last_warned_chk",
+          "expression": "\"last_warned_working_days\" is null or \"last_warned_working_days\" >= 0",
+          "definition": "check (\"last_warned_working_days\" is null or \"last_warned_working_days\" >= 0)"
+        },
+        {
+          "name": "bookings_bookings_status_check",
+          "expression": "\"status\" in ('planned', 'active', 'completed', 'cancelled', 'no_show')",
+          "definition": "check (\"status\" in ('planned', 'active', 'completed', 'cancelled', 'no_show'))",
+          "columnName": "status"
         },
         {
           "name": "bookings_bookings_window_order_chk",
@@ -423,8 +463,11 @@
           "default": "'reject'",
           "comment": null,
           "collation": null,
-          "enumItems": [],
-          "mappedType": "text"
+          "enumItems": [
+            "advisory",
+            "reject"
+          ],
+          "mappedType": "enum"
         },
         "organization_id": {
           "name": "organization_id",
@@ -486,7 +529,7 @@
           "keyName": "bookings_conflict_policy_exceptions_category_uq",
           "primary": false,
           "unique": false,
-          "expression": "create unique index \"bookings_conflict_policy_exceptions_category_uq\" on \"bookings_conflict_policy_exceptions\" (\"tenant_id\", \"organization_id\", \"category_id\") where \"deleted_at\" is null"
+          "expression": "create unique index \"bookings_conflict_policy_exceptions_category_uq\" on \"bookings_conflict_policy_exceptions\" (\"organization_id\", \"tenant_id\", \"category_id\") where \"deleted_at\" is null"
         },
         {
           "columnNames": [
@@ -511,7 +554,14 @@
           "unique": true
         }
       ],
-      "checks": [],
+      "checks": [
+        {
+          "name": "bookings_conflict_policy_exceptions_mode_check",
+          "expression": "\"mode\" in ('advisory', 'reject')",
+          "definition": "check (\"mode\" in ('advisory', 'reject'))",
+          "columnName": "mode"
+        }
+      ],
       "triggers": [],
       "foreignKeys": {
         "bookings_conflict_policy_exceptions_category_id_foreign": {
@@ -677,19 +727,7 @@
           "keyName": "bookings_holidays_org_date_uq",
           "primary": false,
           "unique": false,
-          "expression": "create unique index \"bookings_holidays_org_date_uq\" on \"bookings_holidays\" (\"tenant_id\", \"organization_id\", \"holiday_on\") where \"deleted_at\" is null"
-        },
-        {
-          "columnNames": [
-            "organization_id",
-            "tenant_id",
-            "holiday_on"
-          ],
-          "composite": true,
-          "constraint": false,
-          "keyName": "bookings_holidays_org_tenant_date_idx",
-          "primary": false,
-          "unique": false
+          "expression": "create unique index \"bookings_holidays_org_date_uq\" on \"bookings_holidays\" (\"organization_id\", \"tenant_id\", \"holiday_on\") where \"deleted_at\" is null"
         },
         {
           "columnNames": [
@@ -810,8 +848,12 @@
           "default": "'performer'",
           "comment": null,
           "collation": null,
-          "enumItems": [],
-          "mappedType": "text"
+          "enumItems": [
+            "performer",
+            "place",
+            "supporting"
+          ],
+          "mappedType": "enum"
         },
         "subject_id": {
           "name": "subject_id",
@@ -867,16 +909,6 @@
       },
       "indexes": [
         {
-          "columnNames": [
-            "booking_id"
-          ],
-          "composite": false,
-          "constraint": false,
-          "keyName": "bookings_participants_booking_idx",
-          "primary": false,
-          "unique": false
-        },
-        {
           "columnNames": [],
           "composite": false,
           "constraint": false,
@@ -918,7 +950,14 @@
           "unique": false
         }
       ],
-      "checks": [],
+      "checks": [
+        {
+          "name": "bookings_participants_role_check",
+          "expression": "\"role\" in ('performer', 'place', 'supporting')",
+          "definition": "check (\"role\" in ('performer', 'place', 'supporting'))",
+          "columnName": "role"
+        }
+      ],
       "triggers": [],
       "foreignKeys": {
         "bookings_participants_booking_id_foreign": {
@@ -964,8 +1003,11 @@
           "default": "'advisory'",
           "comment": null,
           "collation": null,
-          "enumItems": [],
-          "mappedType": "text"
+          "enumItems": [
+            "advisory",
+            "reject"
+          ],
+          "mappedType": "enum"
         },
         "created_at": {
           "name": "created_at",
@@ -1144,7 +1186,7 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "unique": false,
+          "unique": true,
           "length": null,
           "precision": null,
           "scale": null,
@@ -1161,7 +1203,7 @@
           "autoincrement": false,
           "primary": false,
           "nullable": false,
-          "unique": true,
+          "unique": false,
           "length": null,
           "precision": null,
           "scale": null,
@@ -1226,6 +1268,17 @@
       "indexes": [
         {
           "columnNames": [
+            "organization_id",
+            "tenant_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "bookings_settings_org_tenant_uq",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
             "id"
           ],
           "composite": false,
@@ -1233,20 +1286,21 @@
           "keyName": "bookings_settings_pkey",
           "primary": true,
           "unique": true
-        },
-        {
-          "columnNames": [
-            "tenant_id",
-            "organization_id"
-          ],
-          "composite": true,
-          "constraint": true,
-          "keyName": "bookings_settings_tenant_org_uq",
-          "primary": false,
-          "unique": true
         }
       ],
-      "checks": [],
+      "checks": [
+        {
+          "name": "bookings_settings_conflict_policy_check",
+          "expression": "\"conflict_policy\" in ('advisory', 'reject')",
+          "definition": "check (\"conflict_policy\" in ('advisory', 'reject'))",
+          "columnName": "conflict_policy"
+        },
+        {
+          "name": "bookings_settings_warning_threshold_chk",
+          "expression": "\"warning_threshold_working_days\" >= 0",
+          "definition": "check (\"warning_threshold_working_days\" >= 0)"
+        }
+      ],
       "triggers": [],
       "foreignKeys": {},
       "comment": null
@@ -1417,7 +1471,7 @@
           "keyName": "bookings_subject_categories_org_name_uq",
           "primary": false,
           "unique": false,
-          "expression": "create unique index \"bookings_subject_categories_org_name_uq\" on \"bookings_subject_categories\" (\"tenant_id\", \"organization_id\", lower(\"name\")) where \"deleted_at\" is null"
+          "expression": "create unique index \"bookings_subject_categories_org_name_uq\" on \"bookings_subject_categories\" (\"organization_id\", \"tenant_id\", lower(\"name\")) where \"deleted_at\" is null"
         },
         {
           "columnNames": [
@@ -1679,7 +1733,7 @@
           "keyName": "bookings_subjects_provider_record_uq",
           "primary": false,
           "unique": false,
-          "expression": "create unique index \"bookings_subjects_provider_record_uq\" on \"bookings_subjects\" (\"tenant_id\", \"organization_id\", \"provider_key\", \"provider_record_id\") where \"deleted_at\" is null"
+          "expression": "create unique index \"bookings_subjects_provider_record_uq\" on \"bookings_subjects\" (\"organization_id\", \"tenant_id\", \"provider_key\", \"provider_record_id\") where \"deleted_at\" is null"
         }
       ],
       "checks": [],

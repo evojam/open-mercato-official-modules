@@ -13,7 +13,7 @@ import { BookingSubjectCategory } from './category.entity'
 @Index({
   name: 'bookings_subjects_provider_record_uq',
   expression:
-    `create unique index "bookings_subjects_provider_record_uq" on "bookings_subjects" ("tenant_id", "organization_id", "provider_key", "provider_record_id") where "deleted_at" is null`,
+    `create unique index "bookings_subjects_provider_record_uq" on "bookings_subjects" ("organization_id", "tenant_id", "provider_key", "provider_record_id") where "deleted_at" is null`,
 })
 export class BookingSubject {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
@@ -25,6 +25,9 @@ export class BookingSubject {
   @Property({ name: 'tenant_id', type: 'uuid' })
   tenantId!: string
 
+  @ManyToOne(() => BookingSubjectCategory, { fieldName: 'category_id', nullable: true })
+  category?: BookingSubjectCategory | null
+
   @Property({ name: 'provider_key', type: 'text' })
   providerKey!: string
 
@@ -33,9 +36,6 @@ export class BookingSubject {
 
   @Property({ name: 'name', type: 'text' })
   name!: string
-
-  @ManyToOne(() => BookingSubjectCategory, { fieldName: 'category_id', nullable: true })
-  category?: BookingSubjectCategory | null
 
   @Property({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean = true

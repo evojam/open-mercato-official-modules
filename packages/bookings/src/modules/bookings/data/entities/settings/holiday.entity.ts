@@ -2,13 +2,9 @@ import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legac
 
 @Entity({ tableName: 'bookings_holidays' })
 @Index({
-  name: 'bookings_holidays_org_tenant_date_idx',
-  properties: ['organizationId', 'tenantId', 'holidayOn'],
-})
-@Index({
   name: 'bookings_holidays_org_date_uq',
   expression:
-    `create unique index "bookings_holidays_org_date_uq" on "bookings_holidays" ("tenant_id", "organization_id", "holiday_on") where "deleted_at" is null`,
+    `create unique index "bookings_holidays_org_date_uq" on "bookings_holidays" ("organization_id", "tenant_id", "holiday_on") where "deleted_at" is null`,
 })
 export class BookingsHoliday {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
@@ -21,7 +17,7 @@ export class BookingsHoliday {
   tenantId!: string
 
   @Property({ name: 'holiday_on', type: 'date' })
-  holidayOn!: Date
+  holidayOn!: string
 
   @Property({ name: 'label', type: 'text', nullable: true })
   label?: string | null

@@ -1,11 +1,17 @@
-import { Entity, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy'
+import { Check, Entity, Enum, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy'
 
-export type BookingConflictPolicy = 'advisory' | 'reject'
+export const BOOKING_CONFLICT_POLICIES = ['advisory', 'reject'] as const
+
+export type BookingConflictPolicy = (typeof BOOKING_CONFLICT_POLICIES)[number]
 
 @Entity({ tableName: 'bookings_settings' })
 @Unique({
-  name: 'bookings_settings_tenant_org_uq',
-  properties: ['tenantId', 'organizationId'],
+  name: 'bookings_settings_org_tenant_uq',
+  properties: ['organizationId', 'tenantId'],
+})
+@Check({
+  name: 'bookings_settings_warning_threshold_chk',
+  expression: `"warning_threshold_working_days" >= 0`,
 })
 export class BookingsSettings {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
@@ -44,11 +50,11 @@ export class BookingsSettings {
   @Property({ name: 'time_zone', type: 'text', default: 'UTC' })
   timeZone: string = 'UTC'
 
-  @Property({ name: 'conflict_policy', type: 'text', default: 'advisory' })
+  @Enum({ name: 'conflict_policy', items: () => BOOKING_CONFLICT_POLICIES, type: 'text', default: 'advisory' })
   conflictPolicy: BookingConflictPolicy = 'advisory'
 
   @Property({ name: 'last_scan_local_date', type: 'date', nullable: true })
-  lastScanLocalDate?: Date | null
+  lastScanLocalDate?: string | null
 
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()

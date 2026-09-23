@@ -1,16 +1,19 @@
-# Reservations module — architecture
+# Bookings module — architecture
 
-Companion to `packages/reservations/AGENTS.md`. The rules live there; this document explains
+Companion to `packages/bookings/AGENTS.md`. The rules live there; this document explains
 how the module is built and why. The design authority is
-`.ai/specs/2026-08-10-reservations-module.md` (v3.1); where this file and the spec disagree,
-the spec wins and this file gets fixed. Vocabulary: the domain glossary in `product-brief.md`
-next to this file.
+`.ai/specs/2026-08-10-bookings-module.md` (v3.2); where this file and the spec disagree,
+the spec wins and this file gets fixed. Deliberate departures are recorded in
+`implementation-deltas.md` next to this file. Vocabulary: the domain glossary in
+`product-brief.md`, also next to this file.
+
+Prose says "reservation" for the thing being booked; every identifier says `bookings`.
 
 ## Layers and dependency direction
 
 The module keeps one hexagonal boundary, not four. Everything portable and pure lives in
 `src/lib/` (`pure-engine`, `timeline`) and knows nothing about routes, commands or the
-database. Everything under `src/modules/reservations/` follows the platform's own shape:
+database. Everything under `src/modules/bookings/` follows the platform's own shape:
 `makeCrudRoute` for CRUD, `registerCommand` for domain operations, `em` inside
 `withAtomicFlush` for persistence. `src/modules/**` imports from `src/lib/**`, never the
 other way.
@@ -19,30 +22,29 @@ Every layer must earn its place. There are no repository ports or adapters for t
 own tables: the platform's write path already gives undo, audit, the query index and mutation
 guards, so a second set of files per table would buy nothing. `src/lib/` is the package's
 portable layer — the same purity bar as the engine itself, shipped inside the module package
-and importable without enabling the module (`@open-mercato/reservations/lib/pure-engine`,
-`@open-mercato/reservations/lib/timeline`).
+and importable without enabling the module (`@open-mercato/bookings/lib/pure-engine`,
+`@open-mercato/bookings/lib/timeline`).
 
 Scaling: the module holds no state in process memory. The only concurrency invariant — no
-two overlapping open reservations of one subject under `reject` — is enforced in the
-database with a per-subject advisory lock inside the write transaction, never with an
-in-process mutex. Drafts on the timeline are browser state until Save.
+two overlapping open bookings of one subject under `reject` — is enforced in the database
+with a per-subject advisory lock inside the write transaction, never with an in-process
+mutex. Drafts on the timeline are browser state until Save.
 
 ## pure-engine
 
 `src/lib/pure-engine/` holds the rules a dispatcher with pen and paper in 1985 would
-recognize: two reservations of one subject overlap; a reservation falls into an
-unavailability window; which calendar days a window covers; how many working days lie
-between two dates; how many working days remain before an unplaced reservation's expected
-start; which status transitions are allowed. Everything else in the package is plumbing that
-carries inputs to these functions and their verdicts back out.
+recognize: two bookings of one subject overlap; a booking falls into an unavailability
+window; which calendar days a window covers; how many working days lie between two dates;
+how many working days remain before an unplaced booking's expected start; which status
+transitions are allowed. Everything else in the package is plumbing that carries inputs to
+these functions and their verdicts back out.
 
 Four rules apply to the whole block. Pure functions over plain values — no classes with
 state, no I/O, the same answer every time. No framework imports — the block bundles to the
 browser (the purity rule in `AGENTS.md`). **No throwing** — a negative outcome is a verdict
 returned as data (a conflict list, a rejected transition with its reason); whether a
-verdict blocks a write is
-the command's decision under the organization's policy, never the engine's. One rule set per
-file, `*.rule.ts`.
+verdict blocks a write is the command's decision under the organization's policy, never the
+engine's. One rule set per file, `*.rule.ts`.
 
 Time and identity arrive as input. `today` is computed by the caller in the organization's
 zone; the engine never reads the clock — one `new Date()` inside a rule would move the day
@@ -51,12 +53,12 @@ warning days) are inputs to the rule, not constants inside it. The engine takes 
 snapshots, never entities, and returns new values, never mutating its inputs.
 
 Status transitions are data plus `canTransition`. A "backwards" transition is either a
-correction (the record was wrong about reality — `completed → active` reopens) or a
-compensation (the event really happened — `cancelled` stays terminal and a new reservation
-replaces the old one).
+correction (the record was wrong about reality — `completed → active` reopens, and `no_show`
+reopens the same way) or a compensation (the event really happened — `cancelled` stays
+terminal and a new booking replaces the old one).
 
 ```ts
-export function canTransition(from: ReservationStatus, to: ReservationStatus): TransitionVerdict {
+export function canTransition(from: BookingStatus, to: BookingStatus): TransitionVerdict {
   return ALLOWED_TRANSITIONS[from].includes(to)
     ? { allowed: true }
     : { allowed: false, reason: 'invalid_transition', from, to }
@@ -66,14 +68,15 @@ export function canTransition(from: ReservationStatus, to: ReservationStatus): T
 The engine's public surface in the first version:
 
 ```
-detectConflicts({ participants, reservations, unavailability })   → Conflict[]   kinds: overlap | unavailability
+detectConflicts({ participants, bookings, unavailability })       → Conflict[]   kinds: overlap | unavailability,
+                                                                    each with the other side
 windowDays(window, zone)                                          → LocalDate[]  spec §8: an all-day window
                                                                     sits on the date of its middle in the
                                                                     company's zone; a window with hours covers
                                                                     every calendar day it touches
 countWorkingDays(from, to, { offWeekdays, holidays })             → number
 addWorkingDays(start, days, calendar)                             → LocalDate   end date from duration
-coverageGap({ latestStart, startAt, today, calendar, threshold })  → { workingDaysLeft, isApproaching, isOverdue }
+coverageGap({ expectedStart, startAt, today, calendar, threshold }) → { workingDaysLeft, isApproaching, isOverdue }
 canTransition(from, to)                                           → TransitionVerdict
 ```
 
@@ -120,7 +123,7 @@ the organization's zone is applied in the command before anything reaches `pure-
 A read never writes. The one exception is named: the daily scan persists its
 per-organization watermark and nothing else. CRUD lists go through `makeCrudRoute`; the
 hand-written reads — timeline, conflicts, unplaced, the occupancy service — read `em` or
-SQL on committed state, because they compute against reservations written a moment ago
+SQL on committed state, because they compute against bookings written a moment ago
 (the committed-state rule). Foreign registries (`resources`, `staff`) are read through the
 query engine (the foreign-registry rule).
 
@@ -130,13 +133,15 @@ schema in `data/validators/<domain>/`, the same schema `openApi` exposes. Caller
 whitelisted by that schema; any guard filter is appended last so a caller can never override
 it. A detail missing in the caller's scope is a 404 thrown as an error, never a `null` body.
 
-The timeline read is a multi-source read: reservations from our tables through `em`, subject
+The timeline read is a multi-source read: bookings from our tables through `em`, subject
 rows from the provider plugins (query engine over `resources` / `staff`), unavailability
-windows from planner's read method, calendar state from settings — four fetches, then one
-pure assembler (`*.assembler.ts`) merging by subject id. Never a SQL join across a module
-boundary; each source is read through its own entry, and the assembler stays free of I/O.
-The conflict verdict itself comes from `pure-engine`; the assembler only composes. Read-side
-arithmetic — thresholds, grouping — lives in a named pure function, never in SQL.
+windows from planner's read method, calendar state from settings and holidays — each source
+fetched on its own, then one pure assembler (`*.assembler.ts`) merging by subject id. Never a SQL join
+across a module boundary; each source is read through its own entry, and the assembler stays
+free of I/O. The conflict verdict itself comes from `pure-engine`; the assembler only
+composes. Read-side arithmetic — thresholds, grouping — lives in a named pure function, never
+in SQL. The read's own filters (`conflictsOnly`, `hideUnavailable`, category) are applied
+after the assembly, on the composed rows.
 
 Query-engine facts worth knowing: query ids use `module:full_table_name` (a wrong id returns
 zero rows silently), entity ids for `indexer` use `module:entity`; items come back with
@@ -150,8 +155,8 @@ into an error. Every business error extends `CrudHttpError` from
 `@open-mercato/shared/lib/crud/errors` and carries a body `{ error, code, details }`:
 `error` is the translated sentence the platform's `apiCall` and `flash` show as they are,
 `code` is a stable machine identifier the UI may use for its own copy, `details` holds the
-values for interpolation (the subject, the slot). Errors are named after the business rule
-and defined in `lib/errors.ts`, never inline.
+values for interpolation (the subject, the slot, the other side of the conflict). Errors are
+named after the business rule and defined in `lib/errors.ts`, never inline.
 
 Why `CrudHttpError`: the platform's undo route passes it through with its status and body;
 any other error is flattened to a plain 400 "Undo failed". Under `reject`, undo that would
@@ -168,9 +173,9 @@ anything else → log and 500.
 |---|---|---|
 | zod parse failed | 400 | factory routes: the platform's `{ error: 'Invalid input', details }`, no code; hand-written routes: `validation_failed` |
 | record not found in the caller's tenant and organization | 404 | `<entity>_not_found` |
-| two reservations of one subject overlap under `reject` | 409 | `reservation_overlap` |
+| two bookings of one subject overlap under `reject` | 409 | `booking_overlap` |
 | stale `updated_at` on a concurrent edit | 409 | the platform's `optimistic_lock_conflict` |
-| forbidden status transition, placement on a cancelled reservation | 422 | `invalid_transition`, `reservation_closed` |
+| forbidden status transition, placement on a cancelled booking | 422 | `invalid_transition`, `booking_closed` |
 | a conflict with an unavailability window | — | never an error; reported in the response |
 | anything unexpected | 500 | `internal_error`, full detail server-side |
 
@@ -196,7 +201,7 @@ identifier and the screen offers "attach existing" instead of repeating the firs
 (spec §6). Never assume rollback across the boundary; design each step to be retried or
 compensated.
 
-Outward, the module offers one DI service (`reservationsOccupancyService`) and nine events;
+Outward, the module offers one DI service (`bookingsOccupancyService`) and nine events;
 other modules — a product's alert center, for example — react to the events and never read
 our tables. Events carry an identifier and the fact, never the record: a listener that needs
 details reads them through the read path. The provider plugin interface is the one
@@ -219,9 +224,8 @@ No screen ever needs F5. Every event a screen cares about is declared with
 `clientBroadcast: true`; the platform's event bridge carries it over SSE to the browsers of
 the same tenant and organization — audience filtering is server-side, the browser never sees
 a foreign event — and each container subscribes with `useAppEvent` to the entities it renders
-and invalidates its own query keys. Wildcards on the event side
-(`reservations.reservation.*`), never on the cache side: invalidating everything turns one
-change into a refetch storm.
+and invalidates its own query keys. Wildcards on the event side (`bookings.booking.*`), never
+on the cache side: invalidating everything turns one change into a refetch storm.
 
 SSE is freshness, not correctness: `refetchOnWindowFocus` and `refetchOnReconnect` stay on,
 so a missed message means a briefly stale tab, never a permanently stale screen. A drag draft
@@ -236,16 +240,34 @@ not from thirty hooks.
 
 ## Data
 
-Five tables (`AGENTS.md › Public Contract Surfaces`), one entity class per file under
+Eight tables (`AGENTS.md › Public Contract Surfaces`), one entity class per file under
 `data/entities/<domain>/`, re-exported through the `data/entities.ts` barrel the generator
-reads. Every table carries the platform's standard columns; `reservations_settings` alone has
-no `deleted_at` — one deleted row would block creating the next, and settings are never
-deleted.
+reads. The spec names five; subject categories, holidays and conflict-policy exceptions are
+tables here rather than columns, and `implementation-deltas.md` says why. Every table carries
+the platform's standard columns; `bookings_settings` alone has no `deleted_at` — one deleted
+row would block creating the next, and settings are never deleted.
 
-Enumerations the code branches on — reservation status, conflict policy — are text columns
-with an `as const` union in code, never a native database enum: a new value is a code
-change, not a migration. Values that are only displayed belong in the platform's
-dictionaries.
+Foreign keys inside the package are real, declared with `@ManyToOne` on the side that holds
+the column: participants point at their booking and their subject, a booking at its target,
+subjects and policy exceptions at a category. The link out of the package is not a foreign
+key: a subject carries `provider_key` + `provider_record_id` and a copy of the name, so a
+disabled provider module costs the label's freshness and nothing else. Property order inside
+an entity is `id` → scope → relations → own columns → timestamps, because it is also the
+column order of the generated table.
+
+Enumerations the code branches on — booking status, participant role, conflict policy — are
+text columns with an `as const` union in code, never a native database enum: a new value is a
+code change, not a migration. Values that are only displayed belong in the platform's
+dictionaries. A list of variable length is never a column: categories, holidays and policy
+exceptions are tables, and the seven free weekdays are seven boolean columns, because that
+set is closed.
+
+Four things the database itself guards on a booking: the window pair is set fully or not at
+all, `end_at` is after `start_at`, the duration is positive and moves in steps of half a day
+— the numeric type alone would let one third through — and one subject appears at most once
+in one booking. They are declared with `@Check` and `@Index` on the entity, never added by
+hand in the migration: a hand-written constraint never reaches the schema snapshot and leaves
+a drift nothing fixes later.
 
 Two MikroORM traps: never call `em.find` / `em.findOne` between a scalar mutation and
 `em.flush()` on the same manager — MikroORM 7 silently drops the update; fetch first, mutate,
@@ -253,29 +275,37 @@ flush once. `em.persist(...)` then `await em.flush()` (there is no `persistAndFl
 `em.create(Entity, data, { partial: true })` to skip default columns.
 
 Unique indexes on soft-deleted tables are partial (`WHERE deleted_at IS NULL`), or a deleted
-row blocks re-creation: `(reservation, subject)` on participants, `(tenant, organization)` on
-settings. Nothing derivable is stored: a conflict is never a column, it is computed on every
-read. The module keeps no table of conflict facts — the notification is the only record and
-it is delivery, not truth; the timeline shows the current state. The migration and its schema
-snapshot land in the same commit.
+row blocks re-creation: `(booking, subject)` on participants, `(tenant, organization,
+provider_key, provider_record_id)` on subjects, `lower(name)` per scope on categories,
+`(tenant, organization, holiday_on)` on holidays, `(tenant, organization, category)` on
+policy exceptions. Settings take a plain unique index on `(tenant, organization)`, because
+that table has nothing to soft-delete. Nothing derivable is stored: a conflict is never a
+column, it is computed on every read. The module keeps no table of conflict facts — the
+notification is the only record and it is delivery, not truth; the timeline shows the current
+state, and a notification is withdrawn through `deleteBySource` once its cause is gone. The
+migration and its schema snapshot land in the same commit.
 
 ## The scan
 
 The daily scan is the module's only background job. One system-level scheduler entry with a
 fixed identifier, registered by module setup, fires every hour and puts a job on the
-`reservations-scan` queue; the worker (`workers/scheduling/scan.worker.ts`, concurrency 1)
+`bookings-scan` queue; the worker (`workers/scheduling/scan.worker.ts`, concurrency 1)
 walks every organization, computes today in that organization's zone, compares it with the
 per-organization watermark and processes only the organizations whose local day has turned.
 The job payload carries nothing — no tenant, no organization; walking them is the worker's
 job, so an organization added later is never forgotten.
 
 The watermark is claimed with one upsert: `INSERT … ON CONFLICT DO UPDATE SET
-last_scan_date = today WHERE last_scan_date IS NULL OR last_scan_date < today`. An
-organization is processed only when that statement changed a row — this covers an
+last_scan_local_date = today WHERE last_scan_local_date IS NULL OR last_scan_local_date <
+today`. An organization is processed only when that statement changed a row — this covers an
 organization with no settings row yet (spec §7.5: the row appears on the first save or the
 first watermark) and one whose watermark is still empty. It also makes the scan idempotent
 under a retried job, a job that runs longer than the hourly tick, or two worker replicas:
 only one of them wins the day.
+
+Each pass ends by clearing what is no longer true: for every subject and target it found
+clean, the worker calls the notification service's `deleteBySource`, so a conflict or gap
+notification disappears for every recipient once the cause is gone.
 
 The scheduler entry targets a queue, not a command, on purpose. The local scheduler that
 `yarn dev` runs executes a command target with a stub container (only `em`, `eventBus`,
@@ -287,11 +317,11 @@ application container in both.
 ## UI
 
 Pages live in `backend/`, reusable pieces in `components/<domain>/`. CRUD screens — targets,
-settings — are `DataTable` and `CrudForm` from the platform kit, nothing hand-rolled. Two
-screens are bespoke because the kit has no equivalent: the timeline board with its composer,
-and the unavailability form that posts to planner's endpoint. Bespoke forms use
-react-hook-form typed as `useForm<z.input<S>, unknown, z.output<S>>` — `z.infer` alone is
-output-typed and wrong for a form.
+categories, settings — are `DataTable` and `CrudForm` from the platform kit, nothing
+hand-rolled. Two screens are bespoke because the kit has no equivalent: the timeline board
+with its composer, and the unavailability form that posts to planner's endpoint. Bespoke
+forms use react-hook-form typed as `useForm<z.input<S>, unknown, z.output<S>>` — `z.infer`
+alone is output-typed and wrong for a form.
 
 A screen has three jobs in three files. The **container** (`use-*.hook.ts` or `page.tsx`)
 fetches through TanStack Query over `apiCall` / `fetchCrudList`, owns UI and URL state,
@@ -331,10 +361,10 @@ in `AGENTS.md`. How the rest is tested, by layer:
 
 Jest finds tests under `src/**/__tests__/` (the scaffold's `testMatch`), so unit tests sit in
 `__tests__/<domain>/` next to the code they cover, not beside the file. Test names state the
-business rule: `it('refuses the second reservation of one subject under reject')`, not
+business rule: `it('refuses the second booking of one subject under reject')`, not
 `it('returns 409')`. Never mock `pure-engine`: a test of a mocked rule tests the mock.
 
-Test data comes from builders under `__tests__/helpers/builders/`: `makeReservationBuilder()`
+Test data comes from builders under `__tests__/helpers/builders/`: `makeBookingBuilder()`
 fills every field with valid defaults, `withStatus(...)` / `withWindow(from, to)` override only
 what the test is about, `build()` returns a plain snapshot. Derived fields are derived, never
 random pairs — `to` is computed from `from`, the duration and the working calendar exactly as
@@ -370,12 +400,12 @@ each anchored in the spec:
 
 | domain | what it holds | spec |
 |---|---|---|
-| `reservations` | reservation, participants, place / move / resize / status, unplaced list, occupancy service, the timeline board | §7.1–7.2, §11, §12 |
+| `bookings` | booking, participants, place / move / resize / status, unplaced list, occupancy service, the timeline board | §7.1–7.2, §11, §12 |
 | `targets` | the target registry | §7.4 |
-| `subjects` | the subject list and the provider plugins for `resources` and `staff` | §6, §7.3 |
+| `subjects` | the subject list, subject categories and the provider plugins for `resources` and `staff` | §6, §7.3 |
 | `scheduling` | conflict detection on write, the daily scan, coverage gaps, notifications, conflict policy | §9 |
 | `unavailability` | the unavailability form — the only place the module writes toward planner | §10 |
-| `settings` | working calendar, time zone, warning threshold, policy defaults | §7.5, §8 |
+| `settings` | working calendar, holidays, time zone, warning threshold, policy defaults and exceptions | §7.5, §8 |
 
 Alerting, users and roles are not domains of this module: a product's alert center consumes
 our events, permissions are `acl.ts` plus the platform's role model.

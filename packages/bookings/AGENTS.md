@@ -1,14 +1,17 @@
-# Reservations Package — Agent Guidelines
+# Bookings Package — Agent Guidelines
 
-`@open-mercato/reservations` adds reservations to Open Mercato: who is busy, when, and for
-what. It finds overlaps and clashes with unavailability, warns before a coverage gap, and
-shows everything on a timeline with one row per subject. It stands on `resources`, `staff`,
+`@open-mercato/bookings` adds bookings to Open Mercato: who is busy, when, and for what. It
+finds overlaps and clashes with unavailability, warns before a coverage gap, and shows
+everything on a timeline with one row per subject. It stands on `resources`, `staff`,
 `planner` and `scheduler`.
 
-Design authority: `.ai/specs/2026-08-10-reservations-module.md` (v3.1). When this file and
-the spec disagree, the spec wins and this file gets fixed. Product context:
-`.ai/specs/reservations/product-brief.md`. How the module is built and why:
-`.ai/specs/reservations/architecture.md`.
+Design authority: `.ai/specs/2026-08-10-bookings-module.md` (v3.2). When this file and the
+spec disagree, the spec wins and this file gets fixed. Where the code departs from the spec
+on purpose: `.ai/specs/bookings/implementation-deltas.md`. Product context:
+`.ai/specs/bookings/product-brief.md`. How the module is built and why:
+`.ai/specs/bookings/architecture.md`.
+
+Prose says "reservation" for the thing being booked; every identifier says `bookings`.
 
 ## Always
 
@@ -30,7 +33,8 @@ the spec disagree, the spec wins and this file gets fixed. Product context:
    rules (leave) into windows.
 5. Under `advisory`, a write that creates a conflict succeeds and returns the conflicts in the
    response. Under `reject`, the write fails with an error that names the subject and the
-   slot. Undo is a write like any other and goes through the same check.
+   slot. Every conflict the module returns carries its kind (`overlap` / `unavailability`) and
+   the other side. Undo is a write like any other and goes through the same check.
 6. Read a foreign record — a subject's name, card or schedule in `resources` or `staff` —
    through the query engine over that module's entities. Write to those registries through
    the command bus, by command name. Never import their entity classes. Reason: neither
@@ -40,16 +44,20 @@ the spec disagree, the spec wins and this file gets fixed. Product context:
 7. Use `enforceCommandOptimisticLockWithGuards`, never the older `enforceCommandOptimisticLock`.
    Reason: core's coverage test fails any new direct call of the older helper, and this
    package runs a copy of that test.
-8. Conflict policy is data in `reservations_settings`, never a constant in code: `advisory`
-   (default — the write goes through, the conflict is reported) or `reject` (a write that
-   creates an overlap fails), with exceptions per subject category; with several participants
-   from different categories the stricter mode applies. Reason: dispatching equipment leaves
-   the decision to a person, booking visits must refuse the second person for the same slot —
-   one module serves both.
+8. Conflict policy is data, never a constant in code: `bookings_settings.conflict_policy` is
+   `advisory` (default — the write goes through, the conflict is reported) or `reject` (a
+   write that creates an overlap fails), with exceptions per subject category in
+   `bookings_conflict_policy_exceptions`; with several participants from different categories
+   the stricter mode applies. Reason: dispatching equipment leaves the decision to a person,
+   booking visits must refuse the second person for the same slot — one module serves both.
 9. Business errors extend `CrudHttpError` from `@open-mercato/shared/lib/crud/errors`, with
    a body `{ error, code, details }`. Reason: the platform's undo route passes only
    `CrudHttpError` through; any other error becomes a plain 400 "Undo failed" and loses the
    status and the reason.
+10. Entity classes go one per file in `data/entities/<domain>/<name>.entity.ts`, re-exported
+    from the `data/entities.ts` barrel. Property order is `id` → scope (`organizationId`,
+    `tenantId`) → relations → own columns → timestamps, because property order is column
+    order in the generated migration.
 
 ## Ask First
 
@@ -59,10 +67,12 @@ the spec disagree, the spec wins and this file gets fixed. Product context:
 - Anything that needs code in `planner`, `staff` or `resources`. That is a separate spec and
   PR in `open-mercato/open-mercato`, merged and published before this package can depend on
   it — `getUnavailabilityWindows` is the first such case.
+- Any table beyond the eight below, and any change to one of them once a migration has
+  shipped. Database schema is an additive-only contract surface.
 
 ## Never
 
-- Never write to planner from this module's server, and never mirror reservations there —
+- Never write to planner from this module's server, and never mirror bookings there —
   occupancy and conflicts stay in this module's tables. The one write toward planner, an
   unavailability window from our form, goes from the browser straight to planner's own rule
   endpoint under planner's permission; our server does not see it and learns about it from
@@ -70,10 +80,9 @@ the spec disagree, the spec wins and this file gets fixed. Product context:
   with no shared transaction, and a server-side write would mean copying planner's
   permission check.
 - Never let a conflict with an unavailability window block a save — in both policies, in
-  both directions (a reservation written into a window, a window written over a
-  reservation). It is reported in the response and in the scan. Reason: a breakdown or an
-  urgent inspection does not ask the schedule first; only two reservations of one subject
-  overlapping can be refused.
+  both directions (a booking written into a window, a window written over a booking). It is
+  reported in the response and in the scan. Reason: a breakdown or an urgent inspection does
+  not ask the schedule first; only two bookings of one subject overlapping can be refused.
 - Never declare a cross-module join once for all with `defineLink` — the platform does not
   use it outside its own test. A join across a module boundary is written in the query that
   needs it (`QueryOptions.joins`).
@@ -81,13 +90,15 @@ the spec disagree, the spec wins and this file gets fixed. Product context:
   `src/lib/timeline/vis-timeline.adapter.ts`, and load it lazily there. Swapping the library
   must mean replacing one file. The guard test fails on an import outside the adapter and on
   an adapter that has no import at all.
+- Never store a list of variable length in a column. It is a table (categories, holidays,
+  policy exceptions) or a set of typed columns (free weekdays).
 
 ## Validation Commands
 
 ```bash
-yarn workspace @open-mercato/reservations typecheck
-yarn workspace @open-mercato/reservations test
-yarn workspace @open-mercato/reservations build
+yarn workspace @open-mercato/bookings typecheck
+yarn workspace @open-mercato/bookings test
+yarn workspace @open-mercato/bookings build
 yarn generate
 ```
 
@@ -109,20 +120,28 @@ Categories follow `BACKWARD_COMPATIBILITY.md` in `open-mercato/open-mercato`.
 
 ### Database (BC #8 — ADDITIVE-ONLY)
 
-`reservations_reservations`, `reservations_participants`, `reservations_targets`,
-`reservations_subjects`, `reservations_settings`.
+```
+bookings_bookings          bookings_participants
+bookings_subjects          bookings_subject_categories
+bookings_targets           bookings_settings
+bookings_holidays          bookings_conflict_policy_exceptions
+```
+
+The spec names five; the last three are implementation deltas D2–D4. Foreign keys inside the
+package are real; the link to `resources` / `staff` is a `provider_key` + `provider_record_id`
+pointer with no foreign key, so a disabled provider module leaves history intact.
 
 ### Event IDs (BC #5 — FROZEN)
 
 ```
-reservations.reservation.created / .updated / .deleted
-reservations.reservation.placed / .moved / .resized / .cancelled
-reservations.conflict.detected
-reservations.coverage_gap.detected
+bookings.booking.created / .updated / .deleted
+bookings.booking.placed / .moved / .resized / .cancelled
+bookings.conflict.detected
+bookings.coverage_gap.detected
 ```
 
-Reservation events carry `clientBroadcast: true`. Complete and reopen ride `.updated` with
-the status change in the payload; only cancel has its own name.
+Booking events carry `clientBroadcast: true`. Complete, reopen and no-show ride `.updated`
+with the status change in the payload; only cancel has its own name.
 
 ### API routes (BC #7 — STABLE) — TODO: URLs are fixed here when the routes exist
 
@@ -131,43 +150,49 @@ Operations from spec §12:
 ```
 targets                        factory — write and read
 subjects                       factory — read and list; create goes through the provider plugin
-reservations                   list, details, single-field edits
+subject categories             factory — write and read
+bookings                       list, details, single-field edits
 place / move / resize / change-status   undoable commands; cancel is an alias of change-status
-timeline read                  one request: rows, bars, unavailability windows, calendar state
-conflict read                  conflicts of subjects in a range
+timeline read                  one request: rows, bars, unavailability windows, calendar state;
+                               filters: category, conflictsOnly, hideUnavailable
+conflict read                  conflicts of subjects in a range, each with kind and other side
 unplaced list                  separate cheap read
-settings                       read and write
+settings                       read and write, including holidays and policy exceptions
 unavailability                 no write endpoint of its own — the form posts to planner's endpoint
 ```
 
 Every route exports `openApi`, factory and hand-written alike. `updatedAt` is listed
-explicitly among list fields.
+explicitly among list fields. Write commands accept a list of participants; the first
+version's screen sends exactly one.
 
 ### DI services (BC #9 — STABLE)
 
-`reservationsOccupancyService` — the only server-side entry for other modules.
+`bookingsOccupancyService` — the only server-side entry for other modules.
 
 - Input: subjects and a date range, capped at one year; a longer question is rejected.
-- Output: per subject, busy intervals with reservation id and target id.
-- Open reservations only; no unavailability (that is the provider plugins' answer).
+- Output: per subject, busy intervals with booking id and target id.
+- Open bookings only (`planned`, `active`); no unavailability (that is the provider plugins'
+  answer).
 - Bulk, no paging.
 
 ### ACL feature IDs (BC #10 — FROZEN)
 
-`reservations.view`, `reservations.manage_reservations`, `reservations.manage_settings`.
+`bookings.view`, `bookings.manage_bookings`, `bookings.manage_settings`.
 
 ### Notification type IDs (BC #11 — FROZEN)
 
-`reservations.conflict`, `reservations.coverage_gap`. Merged by grouping key — conflicts by
-subject, gaps by target. Recipients: holders of `reservations.manage_reservations` in the
-organization. Not retracted in the first version; the user dismisses.
+`bookings.conflict`, `bookings.coverage_gap`. Merged by grouping key — conflicts by subject,
+gaps by target. Recipients: holders of `bookings.manage_bookings` in the organization. Each
+is created with its source — the subject for a conflict, the target for a gap — and removed
+for every recipient through `deleteBySource` once what it reported is gone, after a write and
+in the daily scan (spec §9, §12).
 
 ## Internal-Only Surfaces
 
 Subject to change without deprecation; nothing outside this package may import them: entity
-classes in `data/entities.ts`, `services/`, `commands/`, `components/`, `lib/`, migrations,
+classes under `data/entities/`, `services/`, `commands/`, `components/`, `lib/`, migrations,
 backend pages and widgets. Other modules reach this module only through the API routes, the
-events and `reservationsOccupancyService` listed above.
+events and `bookingsOccupancyService` listed above.
 
 ## Dependencies
 
@@ -183,14 +208,14 @@ checks for the method when it registers its services.
 ## Structure
 
 ```
-packages/reservations/src/
+packages/bookings/src/
 ├── index.ts                  package barrel: export { metadata }
 ├── lib/                      PUBLIC and pure — the purity rule. Imported as
-│   │                         @open-mercato/reservations/lib/<block>
+│   │                         @open-mercato/bookings/lib/<block>
 │   ├── pure-engine/          conflicts, working days, coverage gap, window days — *.rule.ts
 │   └── timeline/             ui/ (React), layout/ (pure), vis-timeline.adapter.ts, types.ts
 ├── __tests__/guards/         purity, vis-timeline import boundary, audits ported from core
-└── modules/reservations/     everything Open Mercato discovers
+└── modules/bookings/         everything Open Mercato discovers
     ├── index.ts              ModuleInfo metadata, re-exports features
     ├── acl.ts setup.ts di.ts events.ts notifications.ts search.ts
     ├── data/                 entities.ts, validators.ts — barrels over entities/<domain>/,
@@ -207,9 +232,9 @@ packages/reservations/src/
     └── __tests__/<domain>/   __integration__/   i18n/   migrations/   widgets/
 ```
 
-Six domains — `reservations`, `targets`, `subjects`, `scheduling`, `unavailability`,
-`settings` — appear as subfolders in every folder that is ours and has content for them,
-never in `api/` or `backend/`, where the folder name is the address. What each domain holds:
+Six domains — `bookings`, `targets`, `subjects`, `scheduling`, `unavailability`, `settings` —
+appear as subfolders in every folder that is ours and has content for them, never in `api/` or
+`backend/`, where the folder name is the address. What each domain holds:
 `architecture.md › Domain map`.
 
 Persistence follows the platform: commands write through `em` inside `withAtomicFlush`;
@@ -219,8 +244,9 @@ package, isolated by the adapter file, the lazy load and the guard test (spec §
 
 ## Cross-Reference
 
-- Spec: `.ai/specs/2026-08-10-reservations-module.md`
-- Product brief: `.ai/specs/reservations/product-brief.md`
-- Architecture: `.ai/specs/reservations/architecture.md`
+- Spec: `.ai/specs/2026-08-10-bookings-module.md`
+- Implementation deltas: `.ai/specs/bookings/implementation-deltas.md`
+- Product brief: `.ai/specs/bookings/product-brief.md`
+- Architecture: `.ai/specs/bookings/architecture.md`
 - Package layout and conventions: root `AGENTS.md`, `.ai/skills/scaffold-module/SKILL.md`
 - Core module guidance: `packages/core/AGENTS.md` in `open-mercato/open-mercato`

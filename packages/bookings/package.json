@@ -1,0 +1,108 @@
+{
+  "name": "@open-mercato/bookings",
+  "version": "0.0.0",
+  "description": "Bookings for Open Mercato — a subject occupied for a target over a time window, with conflict detection, coverage warnings and a resource-lane timeline",
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs",
+    "watch": "node watch.mjs",
+    "test": "jest --config jest.config.cjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./*.ts": {
+      "types": "./src/*.ts",
+      "default": "./dist/*.js"
+    },
+    "./*.tsx": {
+      "types": "./src/*.tsx",
+      "default": "./dist/*.js"
+    },
+    "./*.json": "./src/*.json",
+    "./*": {
+      "types": [
+        "./src/*.ts",
+        "./src/*.tsx"
+      ],
+      "default": "./dist/*.js"
+    },
+    "./*/*.json": "./src/*/*.json",
+    "./*/*": {
+      "types": [
+        "./src/*/*.ts",
+        "./src/*/*.tsx"
+      ],
+      "default": "./dist/*/*.js"
+    },
+    "./*/*/*.json": "./src/*/*/*.json",
+    "./*/*/*": {
+      "types": [
+        "./src/*/*/*.ts",
+        "./src/*/*/*.tsx"
+      ],
+      "default": "./dist/*/*/*.js"
+    },
+    "./*/*/*/*.json": "./src/*/*/*/*.json",
+    "./*/*/*/*": {
+      "types": [
+        "./src/*/*/*/*.ts",
+        "./src/*/*/*/*.tsx"
+      ],
+      "default": "./dist/*/*/*/*.js"
+    },
+    "./*/*/*/*/*.json": "./src/*/*/*/*/*.json",
+    "./*/*/*/*/*": {
+      "types": [
+        "./src/*/*/*/*/*.ts",
+        "./src/*/*/*/*/*.tsx"
+      ],
+      "default": "./dist/*/*/*/*/*.js"
+    },
+    "./*/*/*/*/*/*.json": "./src/*/*/*/*/*/*.json",
+    "./*/*/*/*/*/*": {
+      "types": [
+        "./src/*/*/*/*/*/*.ts",
+        "./src/*/*/*/*/*/*.tsx"
+      ],
+      "default": "./dist/*/*/*/*/*/*.js"
+    }
+  },
+  "peerDependencies": {
+    "@mikro-orm/core": "^7.0.14",
+    "@mikro-orm/decorators": "^7.0.14",
+    "@open-mercato/core": "^0.6.0",
+    "@open-mercato/queue": "^0.6.0",
+    "@open-mercato/scheduler": "^0.6.0",
+    "@open-mercato/shared": "^0.6.0",
+    "@open-mercato/ui": "^0.6.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@open-mercato/core": "0.6.3-develop.3778.1.25fdb35f2e",
+    "@open-mercato/queue": "0.6.3-develop.3778.1.25fdb35f2e",
+    "@open-mercato/scheduler": "0.6.3-develop.3778.1.25fdb35f2e",
+    "@open-mercato/shared": "0.6.3-develop.3778.1.25fdb35f2e",
+    "@open-mercato/ui": "0.6.3-develop.3778.1.25fdb35f2e",
+    "@types/jest": "^30.0.0",
+    "esbuild": "^0.28.0",
+    "glob": "^13.0.6",
+    "jest": "^30.3.0",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "ts-jest": "^29.4.9",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

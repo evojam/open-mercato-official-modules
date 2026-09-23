@@ -6239,6 +6239,37 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@open-mercato/bookings@workspace:packages/bookings":
+  version: 0.0.0-use.local
+  resolution: "@open-mercato/bookings@workspace:packages/bookings"
+  dependencies:
+    "@open-mercato/core": "npm:0.6.3-develop.3778.1.25fdb35f2e"
+    "@open-mercato/queue": "npm:0.6.3-develop.3778.1.25fdb35f2e"
+    "@open-mercato/scheduler": "npm:0.6.3-develop.3778.1.25fdb35f2e"
+    "@open-mercato/shared": "npm:0.6.3-develop.3778.1.25fdb35f2e"
+    "@open-mercato/ui": "npm:0.6.3-develop.3778.1.25fdb35f2e"
+    "@types/jest": "npm:^30.0.0"
+    esbuild: "npm:^0.28.0"
+    glob: "npm:^13.0.6"
+    jest: "npm:^30.3.0"
+    react: "npm:19.2.1"
+    react-dom: "npm:19.2.1"
+    ts-jest: "npm:^29.4.9"
+    typescript: "npm:^5.9.3"
+  peerDependencies:
+    "@mikro-orm/core": ^7.0.14
+    "@mikro-orm/decorators": ^7.0.14
+    "@open-mercato/core": ^0.6.0
+    "@open-mercato/queue": ^0.6.0
+    "@open-mercato/scheduler": ^0.6.0
+    "@open-mercato/shared": ^0.6.0
+    "@open-mercato/ui": ^0.6.0
+    react: ^19.0.0
+    react-dom: ^19.0.0
+    zod: ^4.3.6
+  languageName: unknown
+  linkType: soft
+
 "@open-mercato/cache@npm:0.6.3-develop.3778.1.25fdb35f2e":
   version: 0.6.3-develop.3778.1.25fdb35f2e
   resolution: "@open-mercato/cache@npm:0.6.3-develop.3778.1.25fdb35f2e"

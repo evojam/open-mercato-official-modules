@@ -68,8 +68,12 @@ export function canTransition(from: BookingStatus, to: BookingStatus): Transitio
 The engine's public surface in the first version:
 
 ```
-detectConflicts({ participants, bookings, unavailability })       → Conflict[]   kinds: overlap | unavailability,
-                                                                    each with the other side
+detectConflicts({ placements, unavailability })                   → Conflict[]   kinds: overlap | unavailability,
+                                                                    each with the other side; a placement is
+                                                                    one booking against one subject, so a
+                                                                    booking with several participants arrives
+                                                                    as several rows; closed statuses and
+                                                                    unusable windows are dropped by the rule
 windowDays(window, zone)                                          → LocalDate[]  spec §8: an all-day window
                                                                     sits on the date of its middle in the
                                                                     company's zone; a window with hours covers

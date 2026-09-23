@@ -1,6 +1,12 @@
 import { Check, Entity, Enum, Index, ManyToOne, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
 import { BookingTarget } from '../targets/target.entity'
-import { BOOKING_STATUSES, type BookingStatus } from '../../../../../lib/pure-engine/status.rule'
+import {
+  BOOKING_STATUSES,
+  OPEN_BOOKING_STATUSES,
+  type BookingStatus,
+} from '../../../../../lib/pure-engine/status.rule'
+
+const OPEN_STATUSES_SQL = OPEN_BOOKING_STATUSES.map((status) => `'${status}'`).join(', ')
 
 export const BOOKING_DURATION_UNITS = ['working_days', 'minutes'] as const
 
@@ -14,7 +20,7 @@ export type BookingDurationUnit = (typeof BOOKING_DURATION_UNITS)[number]
 @Index({
   name: 'bookings_bookings_open_window_idx',
   expression:
-    `create index "bookings_bookings_open_window_idx" on "bookings_bookings" ("organization_id", "start_at", "end_at") where "deleted_at" is null and "status" in ('planned', 'active')`,
+    `create index "bookings_bookings_open_window_idx" on "bookings_bookings" ("organization_id", "start_at", "end_at") where "deleted_at" is null and "status" in (${OPEN_STATUSES_SQL})`,
 })
 @Index({
   name: 'bookings_bookings_org_expected_start_idx',

@@ -16,7 +16,11 @@ export type Placement = Interval & {
   targetName?: string
 }
 
+// Caller-normalised: `from` and `to` are day boundaries in the organization's zone, never the
+// raw instants planner stores. A window kept in UTC would flag the neighbouring day for every
+// zone east of UTC (spec §8).
 export type UnavailabilityWindow = Interval & {
+  windowId: string
   subjectId: SubjectId
   reasonLabel?: string
 }
@@ -33,6 +37,7 @@ export type UnavailabilityConflict = Interval & {
   kind: 'unavailability'
   subjectId: SubjectId
   bookingId: BookingId
+  withWindowId: string
   reasonLabel?: string
 }
 

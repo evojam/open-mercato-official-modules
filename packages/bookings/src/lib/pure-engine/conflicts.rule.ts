@@ -19,6 +19,12 @@ function intersection(a: Interval, b: Interval): Interval {
   }
 }
 
+function isUsable(interval: Interval): boolean {
+  const from = interval.from.getTime()
+  const to = interval.to.getTime()
+  return Number.isFinite(from) && Number.isFinite(to) && from < to
+}
+
 function groupBySubject<T extends { subjectId: SubjectId }>(items: readonly T[]): Map<SubjectId, T[]> {
   const grouped = new Map<SubjectId, T[]>()
   for (const item of items) {
@@ -51,8 +57,8 @@ function detectOverlaps(placements: readonly Placement[]): Conflict[] {
           kind: 'overlap',
           subjectId,
           bookingId: earlier.bookingId,
-          from: range.from,
-          to: range.to,
+          from: new Date(range.from),
+          to: new Date(range.to),
           withBookingId: later.bookingId,
           withTargetName: later.targetName,
         })
@@ -60,8 +66,8 @@ function detectOverlaps(placements: readonly Placement[]): Conflict[] {
           kind: 'overlap',
           subjectId,
           bookingId: later.bookingId,
-          from: range.from,
-          to: range.to,
+          from: new Date(range.from),
+          to: new Date(range.to),
           withBookingId: earlier.bookingId,
           withTargetName: earlier.targetName,
         })
@@ -93,6 +99,7 @@ function detectUnavailability(
         bookingId: placement.bookingId,
         from: range.from,
         to: range.to,
+        withWindowId: window.windowId,
         reasonLabel: window.reasonLabel,
       })
     }
@@ -102,6 +109,7 @@ function detectUnavailability(
 }
 
 export function detectConflicts({ placements, unavailability = [] }: DetectConflictsInput): Conflict[] {
-  const open = placements.filter((placement) => isOpen(placement.status))
-  return [...detectOverlaps(open), ...detectUnavailability(open, unavailability)]
+  const open = placements.filter((placement) => isOpen(placement.status) && isUsable(placement))
+  const windows = unavailability.filter(isUsable)
+  return [...detectOverlaps(open), ...detectUnavailability(open, windows)]
 }

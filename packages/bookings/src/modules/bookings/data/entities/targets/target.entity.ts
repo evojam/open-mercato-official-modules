@@ -22,6 +22,9 @@ export class BookingTarget {
   @Property({ name: 'name', type: 'text' })
   name!: string
 
+  @Property({ name: 'time_zone', type: 'text', nullable: true })
+  timeZone?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 

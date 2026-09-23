@@ -69,9 +69,35 @@ columns rather than an array, so every day has a type and `psql` shows the calen
 parsing. A rule like "every second Monday" is recurrence, not a free day, and is out of the
 first version either way.
 
+### D6 — A target may carry its own time zone
+
+*spec §7.4, §8*
+
+The specification resolves every day and every day boundary in the organization's zone, and the
+target holds nothing but a name. That holds for a clinic, whose patients come to one building.
+It breaks for the case the module is meant to serve: dispatching people and equipment to places
+that are somewhere else.
+
+A technician sent across the border is due at 13:00 local time at the place of work. The
+dispatcher entering that sits in another zone, and the organization's zone is the dispatcher's,
+not the destination's. Resolved in the organization's zone, the visit lands two hours off, on
+the wrong side of a working day, and the coverage warning counts to the wrong date.
+
+`bookings_targets` therefore carries a nullable `time_zone`, where empty means the
+organization's. The zone of the target decides the wall time and the day of a booking; the
+organization's zone remains the default and the answer for everything that has no target.
+
+A booking has exactly one target, so the rule stays unambiguous even when its participants come
+from different places: the zone of the destination decides, never the zone of the people
+travelling.
+
+The column exists from the first migration; the resolution itself lands with the working
+calendar, where the time vocabulary (a bare date, an instant, a wall time) and the daylight
+saving rules are built.
+
 ## Conventions
 
-### D6 — Entity classes are one per file, under the domain folder
+### D7 — Entity classes are one per file, under the domain folder
 
 *`AGENTS.md › Structure`*
 
@@ -80,13 +106,13 @@ reads the barrel, so discovery is unchanged. Core keeps every entity of a module
 this package follows its own structure rule instead, and the same domain split is used by
 `commands/`, `services/` and `__tests__/`.
 
-### D7 — Lists are native columns or tables, never `jsonb`
+### D8 — Lists are native columns or tables, never `jsonb`
 
 Core reaches for `jsonb` for small lists. Nothing in this module has a variable shape, so
 `jsonb` would only cost the type and the constraints. Every list here is either a table
 (D3, D4) or a set of typed columns (D5).
 
-### D8 — Duration is a value plus a unit, and both units exist from day one
+### D9 — Duration is a value plus a unit, and both units exist from day one
 
 *spec §4, §7.1*
 
@@ -109,7 +135,7 @@ booking of 13:30–14:00 needs nothing else from the schema.
 This is the same principle the review applied to participants: the first version writes one
 shape, but the model allows the second.
 
-### D9 — The timeline is built on `vis-timeline` before the dependency is signed off
+### D10 — The timeline is built on `vis-timeline` before the dependency is signed off
 
 *spec §11, §16*
 

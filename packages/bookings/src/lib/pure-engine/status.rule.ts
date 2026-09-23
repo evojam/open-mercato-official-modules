@@ -2,10 +2,20 @@ export const BOOKING_STATUSES = ['planned', 'active', 'completed', 'cancelled', 
 
 export type BookingStatus = (typeof BOOKING_STATUSES)[number]
 
-export const OPEN_BOOKING_STATUSES = ['planned', 'active'] as const satisfies readonly BookingStatus[]
+const HOLDS_THE_SLOT: Record<BookingStatus, boolean> = {
+  planned: true,
+  active: true,
+  completed: false,
+  cancelled: false,
+  no_show: false,
+}
+
+export const OPEN_BOOKING_STATUSES = BOOKING_STATUSES.filter(
+  (status) => HOLDS_THE_SLOT[status]
+) as readonly BookingStatus[]
 
 export function isOpen(status: BookingStatus): boolean {
-  return (OPEN_BOOKING_STATUSES as readonly BookingStatus[]).includes(status)
+  return HOLDS_THE_SLOT[status]
 }
 
 export function isClosed(status: BookingStatus): boolean {

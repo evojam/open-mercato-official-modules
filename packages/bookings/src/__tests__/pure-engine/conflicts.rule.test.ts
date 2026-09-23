@@ -1,4 +1,4 @@
-import { detectConflicts } from '../../lib/pure-engine'
+import { detectConflicts, overlaps } from '../../lib/pure-engine'
 import type { Placement, UnavailabilityWindow } from '../../lib/pure-engine'
 
 const MAREK = 'subject-marek'
@@ -65,10 +65,54 @@ describe('detectConflicts — overlapping bookings', () => {
     expect(detectConflicts({ placements })).toEqual([])
   })
 
-  it('does not report a booking against itself when it holds several participants', () => {
+  it('does not report a booking against itself when the same subject is listed twice', () => {
     const placements = [
       placement({ bookingId: 'a', from: day('2026-09-23'), to: day('2026-09-25') }),
-      placement({ bookingId: 'a', subjectId: AUTO, from: day('2026-09-23'), to: day('2026-09-25') }),
+      placement({ bookingId: 'a', from: day('2026-09-23'), to: day('2026-09-25') }),
+    ]
+
+    expect(detectConflicts({ placements })).toEqual([])
+  })
+
+  it('finds a conflict hidden behind a long booking that swallows a shorter one', () => {
+    const placements = [
+      placement({ bookingId: 'long', from: day('2026-09-21'), to: day('2026-09-30') }),
+      placement({ bookingId: 'short', from: day('2026-09-22'), to: day('2026-09-23') }),
+      placement({ bookingId: 'late', from: day('2026-09-28'), to: day('2026-09-29') }),
+    ]
+
+    const pairs = detectConflicts({ placements })
+      .filter((conflict) => conflict.kind === 'overlap')
+      .map((conflict) => [conflict.bookingId, conflict.withBookingId].sort().join('+'))
+
+    expect(new Set(pairs)).toEqual(new Set(['long+short', 'late+long']))
+  })
+
+  it('agrees with a naive comparison of every pair, on a shuffled input', () => {
+    const placements = Array.from({ length: 40 }, (_, index) =>
+      placement({
+        bookingId: `b${index}`,
+        from: day(`2026-09-${String((index % 20) + 1).padStart(2, '0')}`),
+        to: day(`2026-09-${String((index % 20) + 3).padStart(2, '0')}`),
+      })
+    ).sort(() => Math.random() - 0.5)
+
+    const naive = placements.flatMap((left, index) =>
+      placements.slice(index + 1).filter((right) => overlaps(left, right))
+    ).length
+
+    const reported = detectConflicts({ placements }).filter(
+      (conflict) => conflict.kind === 'overlap'
+    ).length
+
+    expect(reported).toBe(naive * 2)
+  })
+
+  it('ignores a booking whose window is inverted or unparseable', () => {
+    const placements = [
+      placement({ bookingId: 'sane', from: day('2026-09-23'), to: day('2026-09-25') }),
+      placement({ bookingId: 'inverted', from: day('2026-09-26'), to: day('2026-09-22') }),
+      placement({ bookingId: 'broken', from: new Date('nonsense'), to: day('2026-09-25') }),
     ]
 
     expect(detectConflicts({ placements })).toEqual([])
@@ -99,6 +143,7 @@ describe('detectConflicts — overlapping bookings', () => {
 
 describe('detectConflicts — unavailability', () => {
   const leave: UnavailabilityWindow = {
+    windowId: 'window-leave',
     subjectId: MAREK,
     from: day('2026-09-24'),
     to: day('2026-09-29'),
@@ -116,10 +161,25 @@ describe('detectConflicts — unavailability', () => {
         bookingId: 'a',
         subjectId: MAREK,
         reasonLabel: 'Urlop',
+        withWindowId: 'window-leave',
         from: day('2026-09-24'),
         to: day('2026-09-25'),
       }),
     ])
+  })
+
+  it('counts an active booking as holding its slot, like a planned one', () => {
+    const placements = [placement({ bookingId: 'a', status: 'active', from: day('2026-09-23'), to: day('2026-09-25') })]
+
+    expect(detectConflicts({ placements, unavailability: [leave] })).toHaveLength(1)
+  })
+
+  it('ignores a closed booking that falls into an unavailability window', () => {
+    const placements = [
+      placement({ bookingId: 'a', status: 'cancelled', from: day('2026-09-23'), to: day('2026-09-25') }),
+    ]
+
+    expect(detectConflicts({ placements, unavailability: [leave] })).toEqual([])
   })
 
   it('ignores an unavailability window of another subject', () => {
@@ -155,10 +215,13 @@ describe('detectConflicts — unavailability', () => {
       placement({ bookingId: 'b', from: day('2026-09-24'), to: day('2026-09-26') }),
       placement({ bookingId: 'a', from: day('2026-09-23'), to: day('2026-09-25') }),
     ]
-    const before = JSON.stringify(placements)
+    const unavailability = [leave]
+    const beforePlacements = JSON.stringify(placements)
+    const beforeWindows = JSON.stringify(unavailability)
 
-    detectConflicts({ placements, unavailability: [leave] })
+    detectConflicts({ placements, unavailability })
 
-    expect(JSON.stringify(placements)).toBe(before)
+    expect(JSON.stringify(placements)).toBe(beforePlacements)
+    expect(JSON.stringify(unavailability)).toBe(beforeWindows)
   })
 })

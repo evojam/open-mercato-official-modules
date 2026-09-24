@@ -1,3 +1,5 @@
+export { BOOKING_CONFLICT_POLICIES, isConflictPolicy } from './conflict-policy.rule'
+export type { BookingConflictPolicy } from './conflict-policy.rule'
 export { detectConflicts, overlaps } from './conflicts.rule'
 export { coverageGap } from './coverage-gap.rule'
 export type { CoverageGap, CoverageGapInput } from './coverage-gap.rule'

@@ -1,8 +1,7 @@
+import { OptionalProps } from '@mikro-orm/core'
 import { Check, Entity, Enum, PrimaryKey, Property, Unique } from '@mikro-orm/decorators/legacy'
-
-export const BOOKING_CONFLICT_POLICIES = ['advisory', 'reject'] as const
-
-export type BookingConflictPolicy = (typeof BOOKING_CONFLICT_POLICIES)[number]
+import { BOOKING_CONFLICT_POLICIES } from '../../../../../lib/pure-engine/conflict-policy.rule'
+import type { BookingConflictPolicy } from '../../../../../lib/pure-engine/conflict-policy.rule'
 
 @Entity({ tableName: 'bookings_settings' })
 @Unique({
@@ -14,6 +13,19 @@ export type BookingConflictPolicy = (typeof BOOKING_CONFLICT_POLICIES)[number]
   expression: `"warning_threshold_working_days" >= 0`,
 })
 export class BookingsSettings {
+  [OptionalProps]?:
+    | 'freeOnMonday'
+    | 'freeOnTuesday'
+    | 'freeOnWednesday'
+    | 'freeOnThursday'
+    | 'freeOnFriday'
+    | 'freeOnSaturday'
+    | 'freeOnSunday'
+    | 'warningThresholdWorkingDays'
+    | 'conflictPolicy'
+    | 'createdAt'
+    | 'updatedAt'
+
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string
 

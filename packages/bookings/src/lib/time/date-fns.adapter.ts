@@ -27,6 +27,11 @@ function assertTimeZone(zone: string): void {
   if (!isValidTimeZone(zone)) throw new TypeError(`Unknown time zone "${zone}"`)
 }
 
+export function canonicalTimeZone(zone: string): string {
+  assertTimeZone(zone)
+  return new Intl.DateTimeFormat('en', { timeZone: zone }).resolvedOptions().timeZone
+}
+
 function isoOf(utcMidnightMs: number): IsoDate {
   return new Date(utcMidnightMs).toISOString().slice(0, 10)
 }

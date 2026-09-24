@@ -1,6 +1,6 @@
 import { Entity, Enum, Index, ManyToOne, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
 import { BookingSubjectCategory } from '../subjects/category.entity'
-import { BOOKING_CONFLICT_POLICIES, type BookingConflictPolicy } from './settings.entity'
+import { BOOKING_CONFLICT_POLICIES, type BookingConflictPolicy } from '../../../../../lib/pure-engine/conflict-policy.rule'
 
 @Entity({ tableName: 'bookings_conflict_policy_exceptions' })
 @Index({

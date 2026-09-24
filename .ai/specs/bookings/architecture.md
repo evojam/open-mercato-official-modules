@@ -125,8 +125,10 @@ The command owns the transaction — `withAtomicFlush(em, phases, { transaction:
 option is off by default, so it has to be written — and runs the `pure-engine` verdict inside
 it when the policy is `reject`. A negative verdict becomes an error with a machine `code`.
 Side effects — `emitCrudSideEffects({ indexer })`, events, cache — run after the commit,
-never inside it. The generator scans `commands/**` on `yarn generate` and skips `index`
-files, so a new command file under `commands/<domain>/` is picked up without any manifest.
+never inside it. Commands register themselves on import: `commands/index.ts` imports every
+command file and the module's `index.ts` imports that barrel, as `forms` and core's own
+modules do on the platform release this package builds against (D13). A new command file
+under `commands/<domain>/` needs one line in the barrel.
 
 Scope (tenant, organization) is an explicit argument on every call, never hidden in a
 closure. `pure-engine` receives ids and dates as input — `today` is computed in the

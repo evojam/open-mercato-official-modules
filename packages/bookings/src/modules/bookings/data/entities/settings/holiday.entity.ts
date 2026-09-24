@@ -1,3 +1,4 @@
+import { OptionalProps } from '@mikro-orm/core'
 import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
 
 @Entity({ tableName: 'bookings_holidays' })
@@ -7,6 +8,8 @@ import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legac
     `create unique index "bookings_holidays_org_date_uq" on "bookings_holidays" ("organization_id", "tenant_id", "holiday_on") where "deleted_at" is null`,
 })
 export class BookingsHoliday {
+  [OptionalProps]?: 'createdAt' | 'updatedAt'
+
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string
 

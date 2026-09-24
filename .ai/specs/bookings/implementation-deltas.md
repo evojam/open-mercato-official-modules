@@ -69,9 +69,74 @@ columns rather than an array, so every day has a type and `psql` shows the calen
 parsing. A rule like "every second Monday" is recurrence, not a free day, and is out of the
 first version either way.
 
+### D6 — A target may carry its own time zone
+
+*spec §7.4, §8*
+
+The specification resolves every day and every day boundary in the organization's zone, and the
+target holds nothing but a name. That holds for a clinic, whose patients come to one building.
+It breaks for the case the module is meant to serve: dispatching people and equipment to places
+that are somewhere else.
+
+A technician sent across the border is due at 13:00 local time at the place of work. The
+dispatcher entering that sits in another zone, and the organization's zone is the dispatcher's,
+not the destination's. Resolved in the organization's zone, the visit lands two hours off, on
+the wrong side of a working day, and the coverage warning counts to the wrong date.
+
+Two sides of a booking are expressed in two different zones, so both carry one:
+
+| column | whose zone | what it decides |
+|---|---|---|
+| `bookings_settings.time_zone` | the organization | the default written into the two below, and everything with no target |
+| `bookings_targets.time_zone` | where the work happens | the wall time and the day of a booking |
+| `bookings_subjects.time_zone` | the subject's own calendar | the day of its leave and of its inspections |
+
+A technician's leave belongs to the technician: entered by HR in their own calendar, it does not
+move because a booking sends them abroad. The visit does.
+
+**On the day scale the two are compared as days, not as instants.** A leave Monday in Lisbon and
+a visit Tuesday in Warsaw share an hour of wall clock, and an instant comparison calls that a
+conflict — the very case this delta exists for. The booking's days are resolved in the target's
+zone, the window's days in the subject's, and the rule intersects the two sets of dates.
+Instants only decide once bookings are placed by the minute (D9).
+
+Not solved yet: the engine shipped with the conflict rule compares instants, so this case is
+still reported wrongly. Nothing calls it, and the fix belongs with the working calendar, where
+the bare-date type and the zone conversions are built. Stated here rather than left to be
+discovered.
+
+A booking has exactly one target, so the rule stays unambiguous even when its participants come
+from different places: the zone of the destination decides the booking, never the zone of the
+people travelling.
+
+All three are **required**, and the organization's has no database default: an installation that
+has not chosen its zone must choose it before anything is booked, instead of freezing `UTC` into
+every row it creates in the meantime. The settings row therefore appears on the first save of the
+settings screen, not at tenant creation — reads answer from the built-in defaults until then,
+which is what the specification describes anyway (§7.5).
+
+The other two are written from the organization's zone when the row is created, rather than
+nullable with a fallback. A read then never resolves anything — the row states its
+answer — and a zone is a property of a place, so moving the head office does not move a site
+abroad. The price is accepted and matches how the specification already treats the calendar:
+changing the organization's zone leaves existing rows alone, and correcting one is an edit.
+
+**What an installation sees before the zone is chosen.** Every path that would write a zone into
+a row — creating a target, creating or syncing a subject, placing a booking — stops with
+`409 settings_required`, and the screen sends the administrator to the settings first. Reads are
+unaffected: empty lists need no zone. This is the second departure from §7.5, which has the
+settings row seeded at tenant creation and an organization working from built-in defaults from
+its first minute; with a required zone there is no sensible default to seed, so the module asks
+once instead of guessing forever. The daily scan skips an organization with no settings row
+rather than creating one (`architecture.md › The scan`).
+
+The columns exist from the first migration; the resolution itself lands with the working
+calendar, where the time vocabulary (a bare date, an instant, a wall time) and the daylight
+saving rules are built.
+
 ## Conventions
 
-### D6 — Entity classes are one per file, under the domain folder
+### D7 — Entity classes are one per file, under the domain folder
 
 *`AGENTS.md › Structure`*
 
@@ -80,13 +145,13 @@ reads the barrel, so discovery is unchanged. Core keeps every entity of a module
 this package follows its own structure rule instead, and the same domain split is used by
 `commands/`, `services/` and `__tests__/`.
 
-### D7 — Lists are native columns or tables, never `jsonb`
+### D8 — Lists are native columns or tables, never `jsonb`
 
 Core reaches for `jsonb` for small lists. Nothing in this module has a variable shape, so
 `jsonb` would only cost the type and the constraints. Every list here is either a table
 (D3, D4) or a set of typed columns (D5).
 
-### D8 — Duration is a value plus a unit, and both units exist from day one
+### D9 — Duration is a value plus a unit, and both units exist from day one
 
 *spec §4, §7.1*
 
@@ -109,7 +174,7 @@ booking of 13:30–14:00 needs nothing else from the schema.
 This is the same principle the review applied to participants: the first version writes one
 shape, but the model allows the second.
 
-### D9 — The timeline is built on `vis-timeline` before the dependency is signed off
+### D10 — The timeline is built on `vis-timeline` before the dependency is signed off
 
 *spec §11, §16*
 

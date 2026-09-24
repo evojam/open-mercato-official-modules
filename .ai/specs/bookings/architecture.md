@@ -68,8 +68,12 @@ export function canTransition(from: BookingStatus, to: BookingStatus): Transitio
 The engine's public surface in the first version:
 
 ```
-detectConflicts({ participants, bookings, unavailability })       → Conflict[]   kinds: overlap | unavailability,
-                                                                    each with the other side
+detectConflicts({ placements, unavailability })                   → Conflict[]   kinds: overlap | unavailability,
+                                                                    each with the other side; a placement is
+                                                                    one booking against one subject, so a
+                                                                    booking with several participants arrives
+                                                                    as several rows; closed statuses and
+                                                                    unusable windows are dropped by the rule
 windowDays(window, zone)                                          → LocalDate[]  spec §8: an all-day window
                                                                     sits on the date of its middle in the
                                                                     company's zone; a window with hours covers
@@ -173,6 +177,7 @@ anything else → log and 500.
 |---|---|---|
 | zod parse failed | 400 | factory routes: the platform's `{ error: 'Invalid input', details }`, no code; hand-written routes: `validation_failed` |
 | record not found in the caller's tenant and organization | 404 | `<entity>_not_found` |
+| the organization has not chosen its time zone yet | 409 | `settings_required` |
 | two bookings of one subject overlap under `reject` | 409 | `booking_overlap` |
 | stale `updated_at` on a concurrent edit | 409 | the platform's `optimistic_lock_conflict` |
 | forbidden status transition, placement on a cancelled booking | 422 | `invalid_transition`, `booking_closed` |
@@ -295,13 +300,18 @@ per-organization watermark and processes only the organizations whose local day 
 The job payload carries nothing — no tenant, no organization; walking them is the worker's
 job, so an organization added later is never forgotten.
 
-The watermark is claimed with one upsert: `INSERT … ON CONFLICT DO UPDATE SET
-last_scan_local_date = today WHERE last_scan_local_date IS NULL OR last_scan_local_date <
-today`. An organization is processed only when that statement changed a row — this covers an
-organization with no settings row yet (spec §7.5: the row appears on the first save or the
-first watermark) and one whose watermark is still empty. It also makes the scan idempotent
-under a retried job, a job that runs longer than the hourly tick, or two worker replicas:
-only one of them wins the day.
+The scan skips an organization that has no settings row. It could not do anything useful with
+one: the local date it compares against is computed in the organization's zone, and that zone
+is what the missing row would hold. Nothing is lost — an organization with no settings has no
+bookings either, because creating one is refused until the zone is chosen (D6).
+
+For the rest the watermark is claimed with one update: `UPDATE bookings_settings SET
+last_scan_local_date = today WHERE … AND (last_scan_local_date IS NULL OR last_scan_local_date
+< today)`. An organization is processed only when that statement changed a row, which covers
+one whose watermark is still empty. It also makes the scan idempotent under a retried job, a
+job that runs longer than the hourly tick, or two worker replicas: only one of them wins the
+day. An insert here would fail on the required zone, which is the honest outcome — the scan
+has no business inventing one.
 
 Each pass ends by clearing what is no longer true: for every subject and target it found
 clean, the worker calls the notification service's `deleteBySource`, so a conflict or gap

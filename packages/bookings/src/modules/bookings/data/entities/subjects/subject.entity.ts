@@ -37,6 +37,9 @@ export class BookingSubject {
   @Property({ name: 'name', type: 'text' })
   name!: string
 
+  @Property({ name: 'time_zone', type: 'text' })
+  timeZone!: string
+
   @Property({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean = true
 

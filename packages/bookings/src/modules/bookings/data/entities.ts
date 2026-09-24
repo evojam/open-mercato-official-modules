@@ -1,10 +1,7 @@
-export {
-  Booking,
-  BOOKING_STATUSES,
-  OPEN_BOOKING_STATUSES,
-  BOOKING_DURATION_UNITS,
-} from './entities/bookings/booking.entity'
-export type { BookingStatus, BookingDurationUnit } from './entities/bookings/booking.entity'
+export { Booking, BOOKING_DURATION_UNITS } from './entities/bookings/booking.entity'
+export type { BookingDurationUnit } from './entities/bookings/booking.entity'
+export { BOOKING_STATUSES, OPEN_BOOKING_STATUSES } from '../../../lib/pure-engine/status.rule'
+export type { BookingStatus } from '../../../lib/pure-engine/status.rule'
 export { BookingParticipant, BOOKING_PARTICIPANT_ROLES } from './entities/bookings/participant.entity'
 export type { BookingParticipantRole } from './entities/bookings/participant.entity'
 export { BookingSubject } from './entities/subjects/subject.entity'

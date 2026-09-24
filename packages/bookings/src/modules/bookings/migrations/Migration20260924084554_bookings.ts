@@ -1,6 +1,6 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20260923160031_bookings extends Migration {
+export class Migration20260924084554_bookings extends Migration {
 
   override up(): void | Promise<void> {
     this.addSql(`create table "bookings_holidays" ("id" uuid not null default gen_random_uuid(), "organization_id" uuid not null, "tenant_id" uuid not null, "holiday_on" date not null, "label" text null, "created_at" timestamptz not null, "updated_at" timestamptz not null, "deleted_at" timestamptz null, primary key ("id"));`);
@@ -15,7 +15,7 @@ export class Migration20260923160031_bookings extends Migration {
     this.addSql(`create unique index "bookings_subject_categories_org_name_uq" on "bookings_subject_categories" ("organization_id", "tenant_id", lower("name")) where "deleted_at" is null;`);
     this.addSql(`create index "bookings_subject_categories_org_tenant_deleted_idx" on "bookings_subject_categories" ("organization_id", "tenant_id", "deleted_at");`);
 
-    this.addSql(`create table "bookings_subjects" ("id" uuid not null default gen_random_uuid(), "organization_id" uuid not null, "tenant_id" uuid not null, "category_id" uuid null, "provider_key" text not null, "provider_record_id" text not null, "name" text not null, "is_active" boolean not null default true, "created_at" timestamptz not null, "updated_at" timestamptz not null, "deleted_at" timestamptz null, primary key ("id"));`);
+    this.addSql(`create table "bookings_subjects" ("id" uuid not null default gen_random_uuid(), "organization_id" uuid not null, "tenant_id" uuid not null, "category_id" uuid null, "provider_key" text not null, "provider_record_id" text not null, "name" text not null, "time_zone" text not null, "is_active" boolean not null default true, "created_at" timestamptz not null, "updated_at" timestamptz not null, "deleted_at" timestamptz null, primary key ("id"));`);
     this.addSql(`create unique index "bookings_subjects_provider_record_uq" on "bookings_subjects" ("organization_id", "tenant_id", "provider_key", "provider_record_id") where "deleted_at" is null;`);
     this.addSql(`create index "bookings_subjects_category_idx" on "bookings_subjects" ("category_id");`);
     this.addSql(`create index "bookings_subjects_org_tenant_deleted_idx" on "bookings_subjects" ("organization_id", "tenant_id", "deleted_at");`);
@@ -25,7 +25,7 @@ export class Migration20260923160031_bookings extends Migration {
     this.addSql(`create index "bookings_conflict_policy_exceptions_org_tenant_deleted_idx" on "bookings_conflict_policy_exceptions" ("organization_id", "tenant_id", "deleted_at");`);
     this.addSql(`alter table "bookings_conflict_policy_exceptions" add constraint "bookings_conflict_policy_exceptions_mode_check" check ("mode" in ('advisory', 'reject'));`);
 
-    this.addSql(`create table "bookings_targets" ("id" uuid not null default gen_random_uuid(), "organization_id" uuid not null, "tenant_id" uuid not null, "name" text not null, "time_zone" text null, "created_at" timestamptz not null, "updated_at" timestamptz not null, "deleted_at" timestamptz null, primary key ("id"));`);
+    this.addSql(`create table "bookings_targets" ("id" uuid not null default gen_random_uuid(), "organization_id" uuid not null, "tenant_id" uuid not null, "name" text not null, "time_zone" text not null, "created_at" timestamptz not null, "updated_at" timestamptz not null, "deleted_at" timestamptz null, primary key ("id"));`);
     this.addSql(`create index "bookings_targets_org_name_idx" on "bookings_targets" ("organization_id", "name");`);
     this.addSql(`create index "bookings_targets_org_tenant_deleted_idx" on "bookings_targets" ("organization_id", "tenant_id", "deleted_at");`);
 

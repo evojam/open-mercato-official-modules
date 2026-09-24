@@ -88,24 +88,36 @@ describe('detectConflicts — overlapping bookings', () => {
     expect(new Set(pairs)).toEqual(new Set(['long+short', 'late+long']))
   })
 
-  it('agrees with a naive comparison of every pair, on a shuffled input', () => {
-    const placements = Array.from({ length: 40 }, (_, index) =>
+  it('agrees with a naive comparison of every pair, whatever the order of the input', () => {
+    const lengths = [1, 2, 3, 5, 8, 13]
+    const built = Array.from({ length: 40 }, (_, index) =>
       placement({
         bookingId: `b${index}`,
-        from: day(`2026-09-${String((index % 20) + 1).padStart(2, '0')}`),
-        to: day(`2026-09-${String((index % 20) + 3).padStart(2, '0')}`),
+        from: day(`2026-09-${String(((index * 7) % 20) + 1).padStart(2, '0')}`),
+        to: day(`2026-09-${String(((index * 7) % 20) + 1 + lengths[index % lengths.length]).padStart(2, '0')}`),
       })
-    ).sort(() => Math.random() - 0.5)
+    )
+    const placements = built.filter((_, index) => index % 2 === 0).concat(built.filter((_, index) => index % 2 === 1))
 
-    const naive = placements.flatMap((left, index) =>
-      placements.slice(index + 1).filter((right) => overlaps(left, right))
-    ).length
+    const pairOf = (left: string, right: string) => [left, right].sort().join('+')
 
-    const reported = detectConflicts({ placements }).filter(
-      (conflict) => conflict.kind === 'overlap'
-    ).length
+    const naive = new Set(
+      placements.flatMap((left, index) =>
+        placements
+          .slice(index + 1)
+          .filter((right) => overlaps(left, right))
+          .map((right) => pairOf(left.bookingId, right.bookingId))
+      )
+    )
 
-    expect(reported).toBe(naive * 2)
+    const reported = new Set(
+      detectConflicts({ placements })
+        .filter((conflict) => conflict.kind === 'overlap')
+        .map((conflict) => pairOf(conflict.bookingId, conflict.withBookingId))
+    )
+
+    expect(reported).toEqual(naive)
+    expect(naive.size).toBeGreaterThan(10)
   })
 
   it('ignores a booking whose window is inverted or unparseable', () => {
@@ -204,6 +216,13 @@ describe('detectConflicts — unavailability', () => {
 
     expect(conflicts.filter((conflict) => conflict.kind === 'overlap')).toHaveLength(2)
     expect(conflicts.filter((conflict) => conflict.kind === 'unavailability')).toHaveLength(2)
+  })
+
+  it('ignores an unavailability window whose bounds are inverted', () => {
+    const inverted: UnavailabilityWindow = { ...leave, windowId: 'broken', from: day('2026-09-29'), to: day('2026-09-24') }
+    const placements = [placement({ bookingId: 'a', from: day('2026-09-20'), to: day('2026-09-30') })]
+
+    expect(detectConflicts({ placements, unavailability: [inverted] })).toEqual([])
   })
 
   it('answers with an empty list when nothing was passed', () => {

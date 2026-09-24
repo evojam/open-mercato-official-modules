@@ -11,8 +11,8 @@ const HOLDS_THE_SLOT: Record<BookingStatus, boolean> = {
 }
 
 export const OPEN_BOOKING_STATUSES = BOOKING_STATUSES.filter(
-  (status) => HOLDS_THE_SLOT[status]
-) as readonly BookingStatus[]
+  (status): status is Extract<BookingStatus, 'planned' | 'active'> => HOLDS_THE_SLOT[status]
+)
 
 export function isOpen(status: BookingStatus): boolean {
   return HOLDS_THE_SLOT[status]

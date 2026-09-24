@@ -83,15 +83,29 @@ dispatcher entering that sits in another zone, and the organization's zone is th
 not the destination's. Resolved in the organization's zone, the visit lands two hours off, on
 the wrong side of a working day, and the coverage warning counts to the wrong date.
 
-`bookings_targets` therefore carries a nullable `time_zone`, where empty means the
-organization's. The zone of the target decides the wall time and the day of a booking; the
-organization's zone remains the default and the answer for everything that has no target.
+Two sides of a booking are expressed in two different zones, so both carry one:
+
+| column | whose zone | what it decides |
+|---|---|---|
+| `bookings_settings.time_zone` | the organization | the default written into the two below, and everything with no target |
+| `bookings_targets.time_zone` | where the work happens | the wall time and the day of a booking |
+| `bookings_subjects.time_zone` | the subject's own calendar | the day of its leave and of its inspections |
+
+A technician's leave belongs to the technician: entered by HR in their own calendar, it does not
+move because a booking sends them abroad. The visit does. Comparing the two therefore happens on
+instants, each side derived in the zone that owns it.
 
 A booking has exactly one target, so the rule stays unambiguous even when its participants come
-from different places: the zone of the destination decides, never the zone of the people
-travelling.
+from different places: the zone of the destination decides the booking, never the zone of the
+people travelling.
 
-The column exists from the first migration; the resolution itself lands with the working
+Both columns are **required**, written from the organization's zone when the row is created,
+rather than nullable with a fallback. A read then never resolves anything — the row states its
+answer — and a zone is a property of a place, so moving the head office does not move a site
+abroad. The price is accepted and matches how the specification already treats the calendar:
+changing the organization's zone leaves existing rows alone, and correcting one is an edit.
+
+The columns exist from the first migration; the resolution itself lands with the working
 calendar, where the time vocabulary (a bare date, an instant, a wall time) and the daylight
 saving rules are built.
 

@@ -121,6 +121,15 @@ answer — and a zone is a property of a place, so moving the head office does n
 abroad. The price is accepted and matches how the specification already treats the calendar:
 changing the organization's zone leaves existing rows alone, and correcting one is an edit.
 
+**What an installation sees before the zone is chosen.** Every path that would write a zone into
+a row — creating a target, creating or syncing a subject, placing a booking — stops with
+`409 settings_required`, and the screen sends the administrator to the settings first. Reads are
+unaffected: empty lists need no zone. This is the second departure from §7.5, which has the
+settings row seeded at tenant creation and an organization working from built-in defaults from
+its first minute; with a required zone there is no sensible default to seed, so the module asks
+once instead of guessing forever. The daily scan skips an organization with no settings row
+rather than creating one (`architecture.md › The scan`).
+
 The columns exist from the first migration; the resolution itself lands with the working
 calendar, where the time vocabulary (a bare date, an instant, a wall time) and the daylight
 saving rules are built.

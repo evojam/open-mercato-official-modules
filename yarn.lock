@@ -2823,6 +2823,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@date-fns/tz@npm:^1.5.0":
+  version: 1.5.0
+  resolution: "@date-fns/tz@npm:1.5.0"
+  checksum: 10/a629879b1f307429e0a00a92dea71e19f63398ba304ee0f58f4d141d50c3058d678c4095b25962f7e5fda508c70502811dd565e58df99e5632dc16097da184a8
+  languageName: node
+  linkType: hard
+
 "@discoveryjs/json-ext@npm:0.5.7":
   version: 0.5.7
   resolution: "@discoveryjs/json-ext@npm:0.5.7"
@@ -6243,12 +6250,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@open-mercato/bookings@workspace:packages/bookings"
   dependencies:
+    "@date-fns/tz": "npm:^1.5.0"
     "@open-mercato/core": "npm:0.6.3-develop.3778.1.25fdb35f2e"
     "@open-mercato/queue": "npm:0.6.3-develop.3778.1.25fdb35f2e"
     "@open-mercato/scheduler": "npm:0.6.3-develop.3778.1.25fdb35f2e"
     "@open-mercato/shared": "npm:0.6.3-develop.3778.1.25fdb35f2e"
     "@open-mercato/ui": "npm:0.6.3-develop.3778.1.25fdb35f2e"
     "@types/jest": "npm:^30.0.0"
+    date-fns: "npm:^4.4.0"
     esbuild: "npm:^0.28.0"
     glob: "npm:^13.0.6"
     jest: "npm:^30.3.0"
@@ -13221,6 +13230,13 @@ __metadata:
   version: 4.1.0
   resolution: "date-fns@npm:4.1.0"
   checksum: 10/d5f6e9de5bbc52310f786099e18609289ed5e30af60a71e0646784c8185ddd1d0eebcf7c96b7faaaefc4a8366f3a3a4244d099b6d0866ee2bec80d1361e64342
+  languageName: node
+  linkType: hard
+
+"date-fns@npm:^4.4.0":
+  version: 4.4.0
+  resolution: "date-fns@npm:4.4.0"
+  checksum: 10/ae702acea42fb8452abe74f6d133c2360de9a14f00985645684b0df9c12280276649e95b52298a4fd7dabcc3b38799eb111107da99320d1cd94ba1d8a3d1c174
   languageName: node
   linkType: hard
 

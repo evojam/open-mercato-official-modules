@@ -15,7 +15,7 @@ Prose says "reservation" for the thing being booked; every identifier says `book
 
 ## Always
 
-1. Keep `src/lib/**` (`pure-engine`, `timeline`) free of `@open-mercato/*` runtime, MikroORM
+1. Keep `src/lib/**` (`pure-engine`, `time`, `timeline`) free of `@open-mercato/*` runtime, MikroORM
    and Node-only imports (`node:*`, `fs`, `path`). These blocks run on the server and in the
    browser from the same source. `src/modules/**` imports from them, never the other way.
 2. Compute conflicts from committed state (`em` / SQL), never from the query index. The index
@@ -71,7 +71,8 @@ Prose says "reservation" for the thing being booked; every identifier says `book
 
 - Adding a production dependency. `vis-timeline` is proposed in spec §11 — loaded lazily,
   isolated in one file, guarded by an import-boundary test — recommended by the reviewer,
-  still waiting for the maintainers' sign-off (spec §16).
+  still waiting for the maintainers' sign-off (spec §16). `date-fns` and `@date-fns/tz` are
+  already in, behind one adapter file (D11).
 - Anything that needs code in `planner`, `staff` or `resources`. That is a separate spec and
   PR in `open-mercato/open-mercato`, merged and published before this package can depend on
   it — `getUnavailabilityWindows` is the first such case.
@@ -98,6 +99,11 @@ Prose says "reservation" for the thing being booked; every identifier says `book
   `src/lib/timeline/vis-timeline.adapter.ts`, and load it lazily there. Swapping the library
   must mean replacing one file. The guard test fails on an import outside the adapter and on
   an adapter that has no import at all.
+- Never import `date-fns` or `@date-fns/tz` anywhere except `src/lib/time/date-fns.adapter.ts`,
+  and never let a `TZDate` leave it — callers get `IsoDate`, `Date` and `DayRange`. Never turn
+  an instant into a day outside `lib/time/day-ranges.ts`: a booking's days are read in its
+  target's zone, an unavailability window's in its subject's, and nowhere in the server's.
+  The same guard test covers this boundary.
 - Never store a list of variable length in a column. It is a table (categories, holidays,
   policy exceptions) or a set of typed columns (free weekdays).
 
@@ -118,7 +124,8 @@ Core's audits stop at the core repository, so this package runs its own set in
 `crud-indexer-config`. Rewrites against our own entity list, because the originals read a
 hard-coded core map: `optimistic-lock-editable-entities`, `record-locks-coverage`. The
 core-only UI sweep is not ported — the workspace one covers it. Our own: purity of
-`src/lib/**` (the purity rule above), the `vis-timeline` import boundary (the Never above),
+`src/lib/**` (the purity rule above), the `vis-timeline` and `date-fns` import boundary
+(`import-boundary.test.ts`, the Never above),
 modelled on core's `xyflow-import-boundary` test, and the live-updates coverage test
 (`architecture.md › Live updates`).
 
@@ -220,9 +227,11 @@ packages/bookings/src/
 ├── index.ts                  package barrel: export { metadata }
 ├── lib/                      PUBLIC and pure — the purity rule. Imported as
 │   │                         @open-mercato/bookings/lib/<block>
-│   ├── pure-engine/          conflicts, working days, coverage gap, window days — *.rule.ts
+│   ├── pure-engine/          conflicts, working days, coverage gap — *.rule.ts, no zones
+│   ├── time/                 date-fns.adapter.ts (the only date-library import), types.ts,
+│   │                         day-ranges.ts (instant → dates in the owner's zone)
 │   └── timeline/             ui/ (React), layout/ (pure), vis-timeline.adapter.ts, types.ts
-├── __tests__/guards/         purity, vis-timeline import boundary, audits ported from core
+├── __tests__/guards/         purity, vis-timeline and date-fns import boundary, audits ported from core
 └── modules/bookings/         everything Open Mercato discovers
     ├── index.ts              ModuleInfo metadata, re-exports features
     ├── acl.ts setup.ts di.ts events.ts notifications.ts search.ts

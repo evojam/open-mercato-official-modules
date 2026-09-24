@@ -1,28 +1,27 @@
+import { isIsoDate } from '../time/date-fns.adapter'
+import type { DayRange } from '../time/types'
 import type {
   Conflict,
   DetectConflictsInput,
-  Interval,
   Placement,
   SubjectId,
   UnavailabilityWindow,
 } from './types'
 import { isOpen } from './status.rule'
 
-export function overlaps(a: Interval, b: Interval): boolean {
-  return a.from.getTime() < b.to.getTime() && a.to.getTime() > b.from.getTime()
+export function overlaps(a: DayRange, b: DayRange): boolean {
+  return a.from < b.to && a.to > b.from
 }
 
-function intersection(a: Interval, b: Interval): Interval {
+function intersection(a: DayRange, b: DayRange): DayRange {
   return {
-    from: new Date(Math.max(a.from.getTime(), b.from.getTime())),
-    to: new Date(Math.min(a.to.getTime(), b.to.getTime())),
+    from: a.from > b.from ? a.from : b.from,
+    to: a.to < b.to ? a.to : b.to,
   }
 }
 
-function isUsable(interval: Interval): boolean {
-  const from = interval.from.getTime()
-  const to = interval.to.getTime()
-  return Number.isFinite(from) && Number.isFinite(to) && from < to
+function isUsable(range: DayRange): boolean {
+  return isIsoDate(range.from) && isIsoDate(range.to) && range.from < range.to
 }
 
 function groupBySubject<T extends { subjectId: SubjectId }>(items: readonly T[]): Map<SubjectId, T[]> {
@@ -35,8 +34,9 @@ function groupBySubject<T extends { subjectId: SubjectId }>(items: readonly T[])
   return grouped
 }
 
-function byStart(a: Interval, b: Interval): number {
-  return a.from.getTime() - b.from.getTime()
+function byStart(a: DayRange, b: DayRange): number {
+  if (a.from === b.from) return 0
+  return a.from < b.from ? -1 : 1
 }
 
 function detectOverlaps(placements: readonly Placement[]): Conflict[] {
@@ -49,7 +49,7 @@ function detectOverlaps(placements: readonly Placement[]): Conflict[] {
       for (let j = i + 1; j < sorted.length; j += 1) {
         const earlier: Placement = sorted[i]
         const later: Placement = sorted[j]
-        if (later.from.getTime() >= earlier.to.getTime()) break
+        if (later.from >= earlier.to) break
         if (earlier.bookingId === later.bookingId) continue
 
         const range = intersection(earlier, later)
@@ -57,8 +57,7 @@ function detectOverlaps(placements: readonly Placement[]): Conflict[] {
           kind: 'overlap',
           subjectId,
           bookingId: earlier.bookingId,
-          from: new Date(range.from),
-          to: new Date(range.to),
+          ...range,
           withBookingId: later.bookingId,
           withTargetName: later.targetName,
         })
@@ -66,8 +65,7 @@ function detectOverlaps(placements: readonly Placement[]): Conflict[] {
           kind: 'overlap',
           subjectId,
           bookingId: later.bookingId,
-          from: new Date(range.from),
-          to: new Date(range.to),
+          ...range,
           withBookingId: earlier.bookingId,
           withTargetName: earlier.targetName,
         })
@@ -92,13 +90,11 @@ function detectUnavailability(
     for (const window of windows) {
       if (!overlaps(placement, window)) continue
 
-      const range = intersection(placement, window)
       conflicts.push({
         kind: 'unavailability',
         subjectId: placement.subjectId,
         bookingId: placement.bookingId,
-        from: range.from,
-        to: range.to,
+        ...intersection(placement, window),
         withWindowId: window.windowId,
         reasonLabel: window.reasonLabel,
       })

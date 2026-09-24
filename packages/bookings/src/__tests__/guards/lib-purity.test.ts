@@ -9,6 +9,7 @@ const ALLOWED_PACKAGES = ['react', 'react-dom', 'react/jsx-runtime']
 
 const ADAPTER_ONLY: Record<string, readonly string[]> = {
   'vis-timeline.adapter.ts': ['vis-timeline', 'vis-timeline/standalone', 'vis-data'],
+  'date-fns.adapter.ts': ['date-fns', '@date-fns/tz'],
 }
 
 const CLOCK = [

@@ -100,10 +100,17 @@ conflict — the very case this delta exists for. The booking's days are resolve
 zone, the window's days in the subject's, and the rule intersects the two sets of dates.
 Instants only decide once bookings are placed by the minute (D9).
 
-Not solved yet: the engine shipped with the conflict rule compares instants, so this case is
-still reported wrongly. Nothing calls it, and the fix belongs with the working calendar, where
-the bare-date type and the zone conversions are built. Stated here rather than left to be
-discovered.
+The engine itself still knows no zone, as spec §8 asks. The conversion sits at the edge, in
+`lib/time/day-ranges.ts`: `bookingDays(window, target zone)` and
+`unavailabilityDays(window, subject zone)` turn stored instants into a half-open range of
+dates, and `detectConflicts` compares those ranges. One departure from §8 inside it: the
+middle-of-the-window rule applies to any window whose length is a whole number of days, not
+only to a single day, so a three-day leave HR stored from UTC midnight reads as three days and
+not four. For one day the result is the same.
+
+"Today" for the coverage warning is the target's today, for the same reason: a deadline belongs
+to the place of work. The scan still turns over once per organization's local day; inside it,
+each booking is judged against `today` in its own target's zone.
 
 A booking has exactly one target, so the rule stays unambiguous even when its participants come
 from different places: the zone of the destination decides the booking, never the zone of the
@@ -185,3 +192,39 @@ known and small: the library is loaded lazily, every import of it lives in
 `lib/timeline/vis-timeline.adapter.ts`, and a guard test fails both an import outside that
 file and an adapter that holds no import at all. A refusal therefore means rewriting one
 file, not the timeline.
+
+### D11 — Dates go through `date-fns`, behind one adapter file
+
+*spec §8, §16*
+
+Zone conversions and calendar arithmetic use `date-fns` 4 with `@date-fns/tz` — the zone
+package published by the `date-fns` authors — both production dependencies of this package.
+Core already ships `date-fns` 4.4.0, so the host resolves one copy; core's zone helper is the
+older third-party `date-fns-tz`, which this package does not add.
+
+Every import of either library lives in `lib/time/date-fns.adapter.ts`, which exposes the
+module's own vocabulary (`IsoDate`, `WallTime`, `Weekday`, `DayRange` in `lib/time/types.ts`)
+and never lets a `TZDate` out. The same guard test as for `vis-timeline` fails an import
+anywhere else in `src`. Swapping the library means rewriting one file.
+
+Clock changes are resolved by hand in the adapter, not by `TZDate`: its constructor
+disambiguates a repeated or skipped wall time through the host's own zone, so the server and
+the browser would store two different instants for the same entry — exactly what §8 forbids.
+
+## Behaviour
+
+### D12 — A start on a free day is allowed and flagged
+
+*spec §2, §4*
+
+The specification says the calendar blocks nothing and work on Saturday is allowed, but does
+not say how a duration counts when the start itself is a free day. The start day always counts
+as the booking's first working day — the dispatcher put it there on purpose — and the free days
+after it are skipped: a three-day booking starting on Saturday covers Saturday, Monday and
+Tuesday. The write goes through and the response flags the free start; the place and move
+commands carry that flag, the engine rule does not.
+
+Open, for the maintainers: a job that really covers a whole weekend cannot be expressed in
+working days. The natural answer is a third duration unit, `calendar_days`, next to
+`working_days` and `minutes` (D9) — a value in the unit check and a branch in the engine. Until
+then such a job is two bookings.

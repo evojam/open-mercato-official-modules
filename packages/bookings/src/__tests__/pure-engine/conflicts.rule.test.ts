@@ -1,5 +1,7 @@
 import { detectConflicts, overlaps } from '../../lib/pure-engine'
-import type { Placement, UnavailabilityWindow } from '../../lib/pure-engine'
+import type { IsoDate, Placement, UnavailabilityWindow } from '../../lib/pure-engine'
+import { addDays } from '../../lib/time/date-fns.adapter'
+import { bookingDays, unavailabilityDays } from '../../lib/time/day-ranges'
 
 const MAREK = 'subject-marek'
 const AUTO = 'subject-auto'
@@ -13,12 +15,12 @@ function placement(overrides: Partial<Placement> & Pick<Placement, 'bookingId' |
   }
 }
 
-function day(date: string): Date {
-  return new Date(`${date}T00:00:00.000Z`)
+function day(date: IsoDate): IsoDate {
+  return date
 }
 
-function plusDays(date: Date, days: number): Date {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+function plusDays(date: IsoDate, days: number): IsoDate {
+  return addDays(date, days)
 }
 
 describe('detectConflicts — overlapping bookings', () => {
@@ -129,7 +131,8 @@ describe('detectConflicts — overlapping bookings', () => {
     const placements = [
       placement({ bookingId: 'sane', from: day('2026-09-23'), to: day('2026-09-25') }),
       placement({ bookingId: 'inverted', from: day('2026-09-26'), to: day('2026-09-22') }),
-      placement({ bookingId: 'broken', from: new Date('nonsense'), to: day('2026-09-25') }),
+      placement({ bookingId: 'broken', from: 'nonsense', to: day('2026-09-25') }),
+      placement({ bookingId: 'impossible', from: '2026-02-30', to: day('2026-09-24') }),
     ]
 
     expect(detectConflicts({ placements })).toEqual([])
@@ -247,5 +250,58 @@ describe('detectConflicts — unavailability', () => {
 
     expect(JSON.stringify(placements)).toBe(beforePlacements)
     expect(JSON.stringify(unavailability)).toBe(beforeWindows)
+  })
+})
+
+describe('detectConflicts — across time zones, fed through day ranges', () => {
+  const hrLeaveOnMonday = { from: new Date('2026-06-01T00:00:00.000Z'), to: new Date('2026-06-02T00:00:00.000Z') }
+
+  function visitInWarsaw(days: [IsoDate, IsoDate]): Placement {
+    const window = {
+      from: new Date(`${days[0]}T00:00:00+02:00`),
+      to: new Date(`${days[1]}T00:00:00+02:00`),
+    }
+    return placement({ bookingId: 'visit', ...bookingDays(window, 'Europe/Warsaw')! })
+  }
+
+  function leaveOf(zone: string): UnavailabilityWindow {
+    return {
+      windowId: 'leave',
+      subjectId: MAREK,
+      ...unavailabilityDays(hrLeaveOnMonday, { subject: zone, organization: 'Europe/Warsaw' })!,
+    }
+  }
+
+  it('keeps a Monday leave in Lisbon clear of a Tuesday visit in Warsaw', () => {
+    const conflicts = detectConflicts({
+      placements: [visitInWarsaw(['2026-06-02', '2026-06-03'])],
+      unavailability: [leaveOf('Europe/Lisbon')],
+    })
+
+    expect(conflicts).toEqual([])
+  })
+
+  it('still reports the leave against a Monday visit in Warsaw', () => {
+    const conflicts = detectConflicts({
+      placements: [visitInWarsaw(['2026-06-01', '2026-06-02'])],
+      unavailability: [leaveOf('Europe/Lisbon')],
+    })
+
+    expect(conflicts).toEqual([
+      expect.objectContaining({ kind: 'unavailability', from: '2026-06-01', to: '2026-06-02' }),
+    ])
+  })
+
+  it('reports two visits of one technician on the same local day in different zones', () => {
+    const warsaw = visitInWarsaw(['2026-06-02', '2026-06-03'])
+    const lisbon = placement({
+      bookingId: 'lisbon',
+      ...bookingDays(
+        { from: new Date('2026-06-02T00:00:00+01:00'), to: new Date('2026-06-03T00:00:00+01:00') },
+        'Europe/Lisbon'
+      )!,
+    })
+
+    expect(detectConflicts({ placements: [warsaw, lisbon] })).toHaveLength(2)
   })
 })

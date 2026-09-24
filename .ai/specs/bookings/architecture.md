@@ -12,7 +12,7 @@ Prose says "reservation" for the thing being booked; every identifier says `book
 ## Layers and dependency direction
 
 The module keeps one hexagonal boundary, not four. Everything portable and pure lives in
-`src/lib/` (`pure-engine`, `timeline`) and knows nothing about routes, commands or the
+`src/lib/` (`pure-engine`, `time`, `timeline`) and knows nothing about routes, commands or the
 database. Everything under `src/modules/bookings/` follows the platform's own shape:
 `makeCrudRoute` for CRUD, `registerCommand` for domain operations, `em` inside
 `withAtomicFlush` for persistence. `src/modules/**` imports from `src/lib/**`, never the
@@ -23,7 +23,8 @@ own tables: the platform's write path already gives undo, audit, the query index
 guards, so a second set of files per table would buy nothing. `src/lib/` is the package's
 portable layer — the same purity bar as the engine itself, shipped inside the module package
 and importable without enabling the module (`@open-mercato/bookings/lib/pure-engine`,
-`@open-mercato/bookings/lib/timeline`).
+`@open-mercato/bookings/lib/time/day-ranges`, `@open-mercato/bookings/lib/timeline`).
+`lib/time/date-fns.adapter.ts` is the only file that imports a date library (D11).
 
 Scaling: the module holds no state in process memory. The only concurrency invariant — no
 two overlapping open bookings of one subject under `reject` — is enforced in the database
@@ -44,11 +45,18 @@ state, no I/O, the same answer every time. No framework imports — the block bu
 browser (the purity rule in `AGENTS.md`). **No throwing** — a negative outcome is a verdict
 returned as data (a conflict list, a rejected transition with its reason); whether a
 verdict blocks a write is the command's decision under the organization's policy, never the
-engine's. One rule set per file, `*.rule.ts`.
+engine's. A broken contract is different: a value the schema already forbids (a non-positive
+duration, a malformed date, a negative threshold) throws, because it is a bug in the caller,
+not an outcome. `detectConflicts` is the one exception: it drops an unusable range instead of
+throwing, because its input includes windows written by planner, and one broken foreign row
+must not stop the daily scan for the whole organization. One rule set per file, `*.rule.ts`.
 
-Time and identity arrive as input. `today` is computed by the caller in the organization's
-zone; the engine never reads the clock — one `new Date()` inside a rule would move the day
-boundary from the company to the server. Thresholds that vary per organization (the coverage
+Time and identity arrive as input. `today` is computed by the caller in the target's zone
+(D6); the engine never reads the clock — one `new Date()` inside a rule would move the day
+boundary from the place of work to the server. Zones do not reach the engine at all (spec §8):
+`lib/time/day-ranges.ts` turns stored instants into ranges of dates at the edge, the booking in
+its target's zone and an unavailability window in its subject's. Nothing reads the browser's
+or the server's zone. Thresholds that vary per organization (the coverage
 warning days) are inputs to the rule, not constants inside it. The engine takes plain
 snapshots, never entities, and returns new values, never mutating its inputs.
 
@@ -73,16 +81,31 @@ detectConflicts({ placements, unavailability })                   → Conflict[]
                                                                     one booking against one subject, so a
                                                                     booking with several participants arrives
                                                                     as several rows; closed statuses and
-                                                                    unusable windows are dropped by the rule
-windowDays(window, zone)                                          → LocalDate[]  spec §8: an all-day window
-                                                                    sits on the date of its middle in the
-                                                                    company's zone; a window with hours covers
-                                                                    every calendar day it touches
-countWorkingDays(from, to, { offWeekdays, holidays })             → number
-addWorkingDays(start, days, calendar)                             → LocalDate   end date from duration
-coverageGap({ expectedStart, startAt, today, calendar, threshold }) → { workingDaysLeft, isApproaching, isOverdue }
+                                                                    unusable ranges are dropped by the rule;
+                                                                    every range is a half-open DayRange of dates
+countWorkingDays(from, toExclusive, calendar)                     → number
+addWorkingDays(start, duration, calendar)                         → IsoDate      the exclusive end: the day after
+                                                                    the last working day; the start always counts,
+                                                                    half a day rounds up (D12, spec §7.1)
+coverageGap({ status, isPlaced, expectedStartOn, today, calendar, thresholdWorkingDays })
+                                                                  → { workingDaysLeft, isOverdue } | null
 canTransition(from, to)                                           → TransitionVerdict
 ```
+
+At the edge, in `lib/time/day-ranges.ts` — the only functions that take a zone:
+
+```
+todayIn(now, targetZone)                                          → IsoDate      the caller's `today`
+dayStartIn(date, zone)                                            → Date         what a write stores for a day
+bookingDays(window, targetZone)                                   → DayRange | null  every date the window touches
+unavailabilityDays(window, { subject, organization })             → DayRange | null  a window between midnights of
+                                                                    the subject's zone, UTC or the organization's
+                                                                    zone covers those dates; any other whole-day
+                                                                    window sits on its middle; a window with hours
+                                                                    covers every date it touches (D6)
+```
+
+`src/modules` imports only this file for dates; the adapter under it stays inside `src/lib`.
 
 Every function takes plain values — and the calendar where it applies — and returns a
 verdict, a number or a list of dates; none reads the clock, the database or the settings.
@@ -107,7 +130,7 @@ files, so a new command file under `commands/<domain>/` is picked up without any
 
 Scope (tenant, organization) is an explicit argument on every call, never hidden in a
 closure. `pure-engine` receives ids and dates as input — `today` is computed in the
-organization's zone by the caller.
+target's zone by the caller.
 
 Three things go wrong most often: a business rule written inline in a command or service
 instead of `pure-engine` (if an `if` encodes business knowledge, it belongs there); a
@@ -120,7 +143,8 @@ Reference implementation for a command and its route:
 `packages/core/src/modules/customers/commands/` and `customers/api/` in
 `open-mercato/open-mercato` — the shape the reviewer's checklist is written against.
 Coercion happens at the boundary: the schema turns ISO strings into dates (`.transform`), and
-the organization's zone is applied in the command before anything reaches `pure-engine`.
+the target's and the subject's zones are applied in the command, through `lib/time/day-ranges.ts`,
+before anything reaches `pure-engine`.
 
 ## Read path
 
@@ -363,6 +387,7 @@ in `AGENTS.md`. How the rest is tested, by layer:
 | what | test | infrastructure |
 |---|---|---|
 | `src/lib/pure-engine` | plain unit: values in, verdict out; no mocks | none |
+| `src/lib/time` | plain unit on the adapter, never mocked; clock changes, zones on both sides of UTC | none |
 | `src/lib/timeline` | unit on `layout/` and on the adapter mapping (`vis-timeline` mocked); a render test only where behaviour is non-trivial | none |
 | presenters | plain unit, `t` and formatters passed in | none |
 | commands and hand-written routes | as the platform tests its own commands (`customers/commands/__tests__`) | per core's pattern |

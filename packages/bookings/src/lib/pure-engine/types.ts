@@ -1,31 +1,24 @@
+import type { DayRange } from '../time/types'
 import type { BookingStatus } from './status.rule'
 
 export type SubjectId = string
 
 export type BookingId = string
 
-export type Interval = {
-  from: Date
-  to: Date
-}
-
-export type Placement = Interval & {
+export type Placement = DayRange & {
   bookingId: BookingId
   subjectId: SubjectId
   status: BookingStatus
   targetName?: string
 }
 
-// Caller-normalised: `from` and `to` are instants derived in the zone that owns the window —
-// the subject's own zone, which is where its leave and its inspections are expressed. Handing
-// over the raw instants planner stores flags the neighbouring day for every zone east of UTC.
-export type UnavailabilityWindow = Interval & {
+export type UnavailabilityWindow = DayRange & {
   windowId: string
   subjectId: SubjectId
   reasonLabel?: string
 }
 
-export type OverlapConflict = Interval & {
+export type OverlapConflict = DayRange & {
   kind: 'overlap'
   subjectId: SubjectId
   bookingId: BookingId
@@ -33,7 +26,7 @@ export type OverlapConflict = Interval & {
   withTargetName?: string
 }
 
-export type UnavailabilityConflict = Interval & {
+export type UnavailabilityConflict = DayRange & {
   kind: 'unavailability'
   subjectId: SubjectId
   bookingId: BookingId

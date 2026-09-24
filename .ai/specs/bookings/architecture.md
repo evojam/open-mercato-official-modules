@@ -47,13 +47,16 @@ returned as data (a conflict list, a rejected transition with its reason); wheth
 verdict blocks a write is the command's decision under the organization's policy, never the
 engine's. A broken contract is different: a value the schema already forbids (a non-positive
 duration, a malformed date, a negative threshold) throws, because it is a bug in the caller,
-not an outcome. One rule set per file, `*.rule.ts`.
+not an outcome. `detectConflicts` is the one exception: it drops an unusable range instead of
+throwing, because its input includes windows written by planner, and one broken foreign row
+must not stop the daily scan for the whole organization. One rule set per file, `*.rule.ts`.
 
 Time and identity arrive as input. `today` is computed by the caller in the target's zone
 (D6); the engine never reads the clock — one `new Date()` inside a rule would move the day
 boundary from the place of work to the server. Zones do not reach the engine at all (spec §8):
 `lib/time/day-ranges.ts` turns stored instants into ranges of dates at the edge, the booking in
-its target's zone and an unavailability window in its subject's. Thresholds that vary per organization (the coverage
+its target's zone and an unavailability window in its subject's. Nothing reads the browser's
+or the server's zone. Thresholds that vary per organization (the coverage
 warning days) are inputs to the rule, not constants inside it. The engine takes plain
 snapshots, never entities, and returns new values, never mutating its inputs.
 
@@ -92,11 +95,17 @@ canTransition(from, to)                                           → Transition
 At the edge, in `lib/time/day-ranges.ts` — the only functions that take a zone:
 
 ```
+todayIn(now, targetZone)                                          → IsoDate      the caller's `today`
+dayStartIn(date, zone)                                            → Date         what a write stores for a day
 bookingDays(window, targetZone)                                   → DayRange | null  every date the window touches
-unavailabilityDays(window, subjectZone)                           → DayRange | null  spec §8: a whole-day window
-                                                                    sits on the date of its middle; a window with
-                                                                    hours covers every date it touches
+unavailabilityDays(window, { subject, organization })             → DayRange | null  a window between midnights of
+                                                                    the subject's zone, UTC or the organization's
+                                                                    zone covers those dates; any other whole-day
+                                                                    window sits on its middle; a window with hours
+                                                                    covers every date it touches (D6)
 ```
+
+`src/modules` imports only this file for dates; the adapter under it stays inside `src/lib`.
 
 Every function takes plain values — and the calendar where it applies — and returns a
 verdict, a number or a list of dates; none reads the clock, the database or the settings.

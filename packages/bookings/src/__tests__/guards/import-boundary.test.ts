@@ -42,3 +42,17 @@ describe.each(BOUNDARIES)('$packages stay behind $adapter', ({ adapter, packages
     expect(importsPackage(readFileSync(adapterPath, 'utf8'), packages)).toBe(true)
   })
 })
+
+describe('the module reaches dates only through lib/time/day-ranges', () => {
+  const LIB_ROOT = join(SRC_ROOT, 'lib')
+  const ADAPTER = /(?:^|\/)date-fns\.adapter$/
+
+  it('never imports the date adapter from outside src/lib, so no caller picks its own zone for a day', () => {
+    const offenders = sourceFiles(SRC_ROOT)
+      .filter((file) => !file.startsWith(LIB_ROOT) && !file.includes('/__tests__/'))
+      .filter((file) => [...readFileSync(file, 'utf8').matchAll(SPECIFIER)].some(([, specifier]) => ADAPTER.test(specifier)))
+      .map((file) => relative(SRC_ROOT, file))
+
+    expect(offenders).toEqual([])
+  })
+})

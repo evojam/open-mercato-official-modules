@@ -26,6 +26,11 @@ export function coverageGap(input: CoverageGapInput): CoverageGap | null {
 
   if (input.expectedStartOn < input.today) return { workingDaysLeft: 0, isOverdue: true }
 
-  const workingDaysLeft = countWorkingDays(input.today, input.expectedStartOn, input.calendar)
+  const workingDaysLeft = countWorkingDays(
+    input.today,
+    input.expectedStartOn,
+    input.calendar,
+    input.thresholdWorkingDays
+  )
   return workingDaysLeft <= input.thresholdWorkingDays ? { workingDaysLeft, isOverdue: false } : null
 }

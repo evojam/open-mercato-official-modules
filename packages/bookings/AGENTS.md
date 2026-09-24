@@ -100,10 +100,13 @@ Prose says "reservation" for the thing being booked; every identifier says `book
   must mean replacing one file. The guard test fails on an import outside the adapter and on
   an adapter that has no import at all.
 - Never import `date-fns` or `@date-fns/tz` anywhere except `src/lib/time/date-fns.adapter.ts`,
-  and never let a `TZDate` leave it — callers get `IsoDate`, `Date` and `DayRange`. Never turn
-  an instant into a day outside `lib/time/day-ranges.ts`: a booking's days are read in its
-  target's zone, an unavailability window's in its subject's, and nowhere in the server's.
-  The same guard test covers this boundary.
+  and never let a `TZDate` leave it — callers get `IsoDate`, `Date` and `DayRange`. Outside
+  `src/lib`, never import the adapter: `src/modules` turns instants into days and days into
+  instants only through `lib/time/day-ranges.ts` (`todayIn`, `dayStartIn`, `bookingDays`,
+  `unavailabilityDays`). `import-boundary.test.ts` fails both.
+- Never use the browser's or the server's zone for a day. A booking's day is its target's, an
+  unavailability window's is its subject's, a scan watermark's is the organization's. Our form
+  computes an unavailability window at the subject's midnights before posting it to planner.
 - Never store a list of variable length in a column. It is a table (categories, holidays,
   policy exceptions) or a set of typed columns (free weekdays).
 

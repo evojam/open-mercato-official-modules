@@ -1,5 +1,5 @@
 import { TZDate, tzOffset } from '@date-fns/tz'
-import { addDays as addCalendarDays, differenceInCalendarDays, format, getDay } from 'date-fns'
+import { format } from 'date-fns'
 
 import type { IsoDate, WallTime, Weekday } from './types'
 
@@ -8,11 +8,15 @@ const DAY_MS = 24 * 60 * MINUTE_MS
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 const WALL_TIME = /^([01]\d|2[0-3]):([0-5]\d)$/
 
+const knownZones = new Set<string>()
+
 // Not `Intl.supportedValuesOf('timeZone')`: it omits `UTC` and the `Etc/*` aliases the runtime still accepts.
 export function isValidTimeZone(zone: string): boolean {
   if (!zone) return false
+  if (knownZones.has(zone)) return true
   try {
     new Intl.DateTimeFormat('en', { timeZone: zone })
+    knownZones.add(zone)
     return true
   } catch {
     return false
@@ -23,33 +27,37 @@ function assertTimeZone(zone: string): void {
   if (!isValidTimeZone(zone)) throw new TypeError(`Unknown time zone "${zone}"`)
 }
 
-function calendarDay(date: IsoDate): TZDate {
+function isoOf(utcMidnightMs: number): IsoDate {
+  return new Date(utcMidnightMs).toISOString().slice(0, 10)
+}
+
+function parseIsoDate(date: string): number | null {
   const parts = ISO_DATE.exec(date)
-  if (!parts) throw new TypeError(`Expected an ISO date (YYYY-MM-DD), received "${date}"`)
-  const day = new TZDate(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]), 'UTC')
-  if (format(day, 'yyyy-MM-dd') !== date) throw new TypeError(`"${date}" is not a calendar date`)
-  return day
+  if (!parts) return null
+  const utcMidnightMs = Date.UTC(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]))
+  return isoOf(utcMidnightMs) === date ? utcMidnightMs : null
+}
+
+function utcMidnightOf(date: IsoDate): number {
+  const utcMidnightMs = parseIsoDate(date)
+  if (utcMidnightMs === null) throw new TypeError(`Expected a calendar date (YYYY-MM-DD), received "${date}"`)
+  return utcMidnightMs
 }
 
 export function isIsoDate(value: string): boolean {
-  try {
-    calendarDay(value)
-    return true
-  } catch {
-    return false
-  }
+  return parseIsoDate(value) !== null
 }
 
 export function addDays(date: IsoDate, days: number): IsoDate {
-  return format(addCalendarDays(calendarDay(date), days), 'yyyy-MM-dd')
+  return isoOf(utcMidnightOf(date) + days * DAY_MS)
 }
 
 export function weekdayOf(date: IsoDate): Weekday {
-  return getDay(calendarDay(date)) as Weekday
+  return new Date(utcMidnightOf(date)).getUTCDay() as Weekday
 }
 
 export function daysBetween(from: IsoDate, to: IsoDate): number {
-  return differenceInCalendarDays(calendarDay(to), calendarDay(from))
+  return Math.round((utcMidnightOf(to) - utcMidnightOf(from)) / DAY_MS)
 }
 
 export function toZonedIsoDate(instant: Date, zone: string): IsoDate {
@@ -66,7 +74,7 @@ export function zonedWallTimeToInstant(date: IsoDate, wallTime: WallTime, zone: 
   const time = WALL_TIME.exec(wallTime)
   if (!time) throw new TypeError(`Expected a wall time (HH:mm), received "${wallTime}"`)
   assertTimeZone(zone)
-  const wallAsUtc = calendarDay(date).getTime() + (Number(time[1]) * 60 + Number(time[2])) * MINUTE_MS
+  const wallAsUtc = utcMidnightOf(date) + (Number(time[1]) * 60 + Number(time[2])) * MINUTE_MS
   const candidates = [
     wallAsUtc - offsetMsAt(wallAsUtc - DAY_MS, zone),
     wallAsUtc - offsetMsAt(wallAsUtc + DAY_MS, zone),

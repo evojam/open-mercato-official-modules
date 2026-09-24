@@ -265,7 +265,11 @@ describe('detectConflicts — across time zones, fed through day ranges', () => 
   }
 
   function leaveOf(zone: string): UnavailabilityWindow {
-    return { windowId: 'leave', subjectId: MAREK, ...unavailabilityDays(hrLeaveOnMonday, zone)! }
+    return {
+      windowId: 'leave',
+      subjectId: MAREK,
+      ...unavailabilityDays(hrLeaveOnMonday, { subject: zone, organization: 'Europe/Warsaw' })!,
+    }
   }
 
   it('keeps a Monday leave in Lisbon clear of a Tuesday visit in Warsaw', () => {

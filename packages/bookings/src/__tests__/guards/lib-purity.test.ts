@@ -17,6 +17,11 @@ const CLOCK = [
   { pattern: /new\s+Date\s*\(\s*\)/, name: 'new Date()' },
   { pattern: /\bMath\.random\s*\(/, name: 'Math.random()' },
   { pattern: /\bperformance\.now\s*\(/, name: 'performance.now()' },
+  { pattern: /new\s+TZDate\s*\(\s*\)/, name: 'new TZDate()' },
+  { pattern: /\bTZDate\.tz\s*\(/, name: 'TZDate.tz()' },
+  { pattern: /\b(?:startOf|endOf)(?:Today|Tomorrow|Yesterday)\s*\(/, name: 'startOfToday() and relatives' },
+  { pattern: /\bis(?:Today|Tomorrow|Yesterday|Past|Future)\s*\(/, name: 'isToday() and relatives' },
+  { pattern: /\bisThis(?:Second|Minute|Hour|Week|Month|Quarter|Year|ISOWeek|ISOWeekYear)\s*\(/, name: 'isThisWeek() and relatives' },
 ]
 
 function sourceFiles(dir: string): string[] {

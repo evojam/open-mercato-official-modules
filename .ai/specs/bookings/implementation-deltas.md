@@ -102,11 +102,31 @@ Instants only decide once bookings are placed by the minute (D9).
 
 The engine itself still knows no zone, as spec §8 asks. The conversion sits at the edge, in
 `lib/time/day-ranges.ts`: `bookingDays(window, target zone)` and
-`unavailabilityDays(window, subject zone)` turn stored instants into a half-open range of
-dates, and `detectConflicts` compares those ranges. One departure from §8 inside it: the
-middle-of-the-window rule applies to any window whose length is a whole number of days, not
-only to a single day, so a three-day leave HR stored from UTC midnight reads as three days and
-not four. For one day the result is the same.
+`unavailabilityDays(window, { subject, organization })` turn stored instants into a half-open
+range of dates, and `detectConflicts` compares those ranges.
+
+A whole-day unavailability window departs from §8. Planner stores it as two instants with no
+zone, and each write path anchors "midnight" differently — HR at UTC midnight, planner's own
+editors at the server's or the author's browser's. The middle-of-the-window rule of §8 reads
+the right day only within eleven hours of UTC; in Auckland or Tonga a Monday leave from HR
+lands on Tuesday. So the day is recognised from the anchor instead: a window whose both ends
+are midnights of the subject's zone (what this module's own form writes), of UTC (what HR
+writes) or of the organization's zone (a planner editor on a server in the company's zone)
+covers exactly those dates, in any zone and across a clock change. Only a window anchored to a
+midnight none of the three owns falls back to the middle rule, for any whole number of days.
+This works around planner's storage, not a rule of ours: a zone on the stored window, or the
+hourly scale, would make it unnecessary.
+
+This module itself never reads the browser's zone. Every instant it writes — a booking's
+window, or an unavailability window its form sends to planner's endpoint — is computed in the
+zone of the one it belongs to, the target's or the subject's, before it leaves the server or
+the form.
+
+Candidate queries must widen their window. The engine compares dates in each owner's zone,
+while `start_at` / `end_at` and `bookings_bookings_open_window_idx` hold instants: two visits
+on 2 June, one on Kiritimati (UTC+14) and one in Honolulu (UTC−10), are the same date but
+disjoint instants. A command or read that loads candidates by instants widens the range by
+fourteen hours on each side and lets the engine decide.
 
 "Today" for the coverage warning is the target's today, for the same reason: a deadline belongs
 to the place of work. The scan still turns over once per organization's local day; inside it,
@@ -197,15 +217,22 @@ file, not the timeline.
 
 *spec §8, §16*
 
-Zone conversions and calendar arithmetic use `date-fns` 4 with `@date-fns/tz` — the zone
-package published by the `date-fns` authors — both production dependencies of this package.
-Core already ships `date-fns` 4.4.0, so the host resolves one copy; core's zone helper is the
-older third-party `date-fns-tz`, which this package does not add.
+Zone conversions use `date-fns` 4 with `@date-fns/tz` — the zone package published by the
+`date-fns` authors — both production dependencies of this package, `^4.4.0` and `^1.5.0`. Core
+and ui pin `date-fns` exactly (4.3.0 in the release this package builds against, 4.4.0 on
+`develop`), so until core moves to 4.4.0 a host holds two copies and a browser bundle that
+loads the timeline can carry both. The cost is bounded: `date-fns` is split per function and the
+adapter imports one. Core's own zone helper is the older third-party `date-fns-tz`, which this
+package does not add. Arithmetic on bare dates needs no library and is done on UTC day
+numbers inside the adapter — the daily scan runs it for every open booking.
 
 Every import of either library lives in `lib/time/date-fns.adapter.ts`, which exposes the
 module's own vocabulary (`IsoDate`, `WallTime`, `Weekday`, `DayRange` in `lib/time/types.ts`)
 and never lets a `TZDate` out. The same guard test as for `vis-timeline` fails an import
-anywhere else in `src`. Swapping the library means rewriting one file.
+anywhere else in `src`, and a second one fails any file outside `src/lib` that imports the
+adapter itself: `src/modules` reaches dates only through `lib/time/day-ranges.ts`
+(`todayIn`, `dayStartIn`, `bookingDays`, `unavailabilityDays`, `isValidTimeZone`). Swapping the
+library means rewriting one file.
 
 Clock changes are resolved by hand in the adapter, not by `TZDate`: its constructor
 disambiguates a repeated or skipped wall time through the host's own zone, so the server and

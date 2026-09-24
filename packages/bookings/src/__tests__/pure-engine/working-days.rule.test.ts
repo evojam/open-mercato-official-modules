@@ -86,6 +86,11 @@ describe('countWorkingDays', () => {
     expect(countWorkingDays('2026-09-24', end, WITH_HOLIDAY)).toBe(7)
   })
 
+  it('stops counting once it passes the limit it was given', () => {
+    expect(countWorkingDays('2026-01-01', '2027-01-01', WEEKENDS_FREE, 5)).toBe(6)
+    expect(countWorkingDays('2026-09-24', '2026-10-01', WEEKENDS_FREE, 5)).toBe(5)
+  })
+
   it('rejects a malformed end instead of looping forever', () => {
     expect(() => countWorkingDays('2026-09-24', 'later', WEEKENDS_FREE)).toThrow(TypeError)
   })

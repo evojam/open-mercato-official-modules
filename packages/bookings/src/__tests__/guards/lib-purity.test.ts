@@ -3,9 +3,13 @@ import { join } from 'node:path'
 
 const LIB_ROOT = join(__dirname, '..', '..', 'lib')
 
-const SPECIFIER = /(?:from\s*|import\s*|require\s*\(\s*)['"]([^'"]+)['"]/g
+const SPECIFIER = /(?:from\s*|import\s*\(?\s*|require\s*\(\s*)['"]([^'"]+)['"]/g
 
 const ALLOWED_PACKAGES = ['react', 'react-dom', 'react/jsx-runtime']
+
+const ADAPTER_ONLY: Record<string, readonly string[]> = {
+  'vis-timeline.adapter.ts': ['vis-timeline', 'vis-timeline/standalone', 'vis-data'],
+}
 
 const CLOCK = [
   { pattern: /\bDate\.now\s*\(/, name: 'Date.now()' },
@@ -26,9 +30,12 @@ function specifiersOf(source: string): string[] {
   return [...source.matchAll(SPECIFIER)].map((match) => match[1])
 }
 
-function isPortable(specifier: string): boolean {
+function isPortable(specifier: string, file: string): boolean {
   if (specifier.startsWith('.')) return !specifier.includes('modules/')
-  return ALLOWED_PACKAGES.includes(specifier)
+  if (ALLOWED_PACKAGES.includes(specifier)) return true
+
+  const fileName = file.slice(file.lastIndexOf('/') + 1)
+  return (ADAPTER_ONLY[fileName] ?? []).includes(specifier)
 }
 
 describe('src/lib stays portable', () => {
@@ -40,7 +47,7 @@ describe('src/lib stays portable', () => {
 
   it.each(files)('%s imports nothing that ties it to the server', (file) => {
     const offenders = specifiersOf(readFileSync(file, 'utf8')).filter(
-      (specifier) => !isPortable(specifier)
+      (specifier) => !isPortable(specifier, file)
     )
 
     expect(offenders).toEqual([])

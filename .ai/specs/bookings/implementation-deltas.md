@@ -92,15 +92,31 @@ Two sides of a booking are expressed in two different zones, so both carry one:
 | `bookings_subjects.time_zone` | the subject's own calendar | the day of its leave and of its inspections |
 
 A technician's leave belongs to the technician: entered by HR in their own calendar, it does not
-move because a booking sends them abroad. The visit does. Comparing the two therefore happens on
-instants, each side derived in the zone that owns it.
+move because a booking sends them abroad. The visit does.
+
+**On the day scale the two are compared as days, not as instants.** A leave Monday in Lisbon and
+a visit Tuesday in Warsaw share an hour of wall clock, and an instant comparison calls that a
+conflict — the very case this delta exists for. The booking's days are resolved in the target's
+zone, the window's days in the subject's, and the rule intersects the two sets of dates.
+Instants only decide once bookings are placed by the minute (D9).
+
+Not solved yet: the engine shipped with the conflict rule compares instants, so this case is
+still reported wrongly. Nothing calls it, and the fix belongs with the working calendar, where
+the bare-date type and the zone conversions are built. Stated here rather than left to be
+discovered.
 
 A booking has exactly one target, so the rule stays unambiguous even when its participants come
 from different places: the zone of the destination decides the booking, never the zone of the
 people travelling.
 
-Both columns are **required**, written from the organization's zone when the row is created,
-rather than nullable with a fallback. A read then never resolves anything — the row states its
+All three are **required**, and the organization's has no database default: an installation that
+has not chosen its zone must choose it before anything is booked, instead of freezing `UTC` into
+every row it creates in the meantime. The settings row therefore appears on the first save of the
+settings screen, not at tenant creation — reads answer from the built-in defaults until then,
+which is what the specification describes anyway (§7.5).
+
+The other two are written from the organization's zone when the row is created, rather than
+nullable with a fallback. A read then never resolves anything — the row states its
 answer — and a zone is a property of a place, so moving the head office does not move a site
 abroad. The price is accepted and matches how the specification already treats the calendar:
 changing the organization's zone leaves existing rows alone, and correcting one is an edit.

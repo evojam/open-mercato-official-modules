@@ -1224,7 +1224,7 @@
           "length": null,
           "precision": null,
           "scale": null,
-          "default": "'UTC'",
+          "default": null,
           "comment": null,
           "collation": null,
           "enumItems": [],

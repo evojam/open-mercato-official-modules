@@ -1,12 +1,12 @@
 import { Migration } from '@mikro-orm/migrations';
 
-export class Migration20260924084554_bookings extends Migration {
+export class Migration20260924091646_bookings extends Migration {
 
   override up(): void | Promise<void> {
     this.addSql(`create table "bookings_holidays" ("id" uuid not null default gen_random_uuid(), "organization_id" uuid not null, "tenant_id" uuid not null, "holiday_on" date not null, "label" text null, "created_at" timestamptz not null, "updated_at" timestamptz not null, "deleted_at" timestamptz null, primary key ("id"));`);
     this.addSql(`create unique index "bookings_holidays_org_date_uq" on "bookings_holidays" ("organization_id", "tenant_id", "holiday_on") where "deleted_at" is null;`);
 
-    this.addSql(`create table "bookings_settings" ("id" uuid not null default gen_random_uuid(), "organization_id" uuid not null, "tenant_id" uuid not null, "free_on_monday" boolean not null default false, "free_on_tuesday" boolean not null default false, "free_on_wednesday" boolean not null default false, "free_on_thursday" boolean not null default false, "free_on_friday" boolean not null default false, "free_on_saturday" boolean not null default true, "free_on_sunday" boolean not null default true, "warning_threshold_working_days" int not null default 5, "time_zone" text not null default 'UTC', "conflict_policy" text not null default 'advisory', "last_scan_local_date" date null, "created_at" timestamptz not null, "updated_at" timestamptz not null, primary key ("id"));`);
+    this.addSql(`create table "bookings_settings" ("id" uuid not null default gen_random_uuid(), "organization_id" uuid not null, "tenant_id" uuid not null, "free_on_monday" boolean not null default false, "free_on_tuesday" boolean not null default false, "free_on_wednesday" boolean not null default false, "free_on_thursday" boolean not null default false, "free_on_friday" boolean not null default false, "free_on_saturday" boolean not null default true, "free_on_sunday" boolean not null default true, "warning_threshold_working_days" int not null default 5, "time_zone" text not null, "conflict_policy" text not null default 'advisory', "last_scan_local_date" date null, "created_at" timestamptz not null, "updated_at" timestamptz not null, primary key ("id"));`);
     this.addSql(`alter table "bookings_settings" add constraint "bookings_settings_org_tenant_uq" unique ("organization_id", "tenant_id");`);
     this.addSql(`alter table "bookings_settings" add constraint "bookings_settings_warning_threshold_chk" check ("warning_threshold_working_days" >= 0);`);
     this.addSql(`alter table "bookings_settings" add constraint "bookings_settings_conflict_policy_check" check ("conflict_policy" in ('advisory', 'reject'));`);

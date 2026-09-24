@@ -47,8 +47,8 @@ export class BookingsSettings {
   @Property({ name: 'warning_threshold_working_days', type: 'integer', default: 5 })
   warningThresholdWorkingDays: number = 5
 
-  @Property({ name: 'time_zone', type: 'text', default: 'UTC' })
-  timeZone: string = 'UTC'
+  @Property({ name: 'time_zone', type: 'text' })
+  timeZone!: string
 
   @Enum({ name: 'conflict_policy', items: () => BOOKING_CONFLICT_POLICIES, type: 'text', default: 'advisory' })
   conflictPolicy: BookingConflictPolicy = 'advisory'

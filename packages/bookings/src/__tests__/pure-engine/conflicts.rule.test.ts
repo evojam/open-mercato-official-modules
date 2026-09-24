@@ -17,6 +17,10 @@ function day(date: string): Date {
   return new Date(`${date}T00:00:00.000Z`)
 }
 
+function plusDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+}
+
 describe('detectConflicts — overlapping bookings', () => {
   it('reports a conflict for both bookings when one subject is booked twice over the same days', () => {
     const placements = [
@@ -90,13 +94,14 @@ describe('detectConflicts — overlapping bookings', () => {
 
   it('agrees with a naive comparison of every pair, whatever the order of the input', () => {
     const lengths = [1, 2, 3, 5, 8, 13]
-    const built = Array.from({ length: 40 }, (_, index) =>
-      placement({
+    const built = Array.from({ length: 40 }, (_, index) => {
+      const start = (index * 7) % 20
+      return placement({
         bookingId: `b${index}`,
-        from: day(`2026-09-${String(((index * 7) % 20) + 1).padStart(2, '0')}`),
-        to: day(`2026-09-${String(((index * 7) % 20) + 1 + lengths[index % lengths.length]).padStart(2, '0')}`),
+        from: plusDays(day('2026-09-01'), start),
+        to: plusDays(day('2026-09-01'), start + lengths[index % lengths.length]),
       })
-    )
+    })
     const placements = built.filter((_, index) => index % 2 === 0).concat(built.filter((_, index) => index % 2 === 1))
 
     const pairOf = (left: string, right: string) => [left, right].sort().join('+')

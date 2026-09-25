@@ -34,6 +34,7 @@ export type WorkingCalendarSectionProps = {
     save: string
   }
   translateError: (key: string) => string
+  formatDate: (date: IsoDate) => string
   onChange: (patch: { freeWeekdays?: Weekday[]; holidays?: BookingsHolidayView[] }) => void
   onSave: () => void
 }
@@ -52,6 +53,7 @@ export function WorkingCalendarSection({
   disabled,
   labels,
   translateError,
+  formatDate,
   onChange,
   onSave,
 }: WorkingCalendarSectionProps) {
@@ -95,7 +97,9 @@ export function WorkingCalendarSection({
           {holidays.length === 0 ? <p className="text-sm text-muted-foreground">{labels.holidaysEmpty}</p> : null}
           {holidays.map((holiday) => (
             <div key={holiday.date} className="flex items-center gap-3 rounded-none border bg-background p-2 text-sm">
-              <span className="font-medium tabular-nums">{holiday.date}</span>
+              <time dateTime={holiday.date} className="font-medium tabular-nums">
+                {formatDate(holiday.date)}
+              </time>
               <span className="truncate text-muted-foreground">{holiday.label}</span>
               <IconButton
                 type="button"

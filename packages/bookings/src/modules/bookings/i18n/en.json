@@ -46,6 +46,7 @@
   "bookings.settings.threshold.field": "Working days",
   "bookings.settings.threshold.hint": "The same number drives the bar and the \"Needs attention\" panel.",
   "bookings.settings.threshold.title": "Early warning",
+  "bookings.settings.timeZone.changeNote": "Changing it does not move existing targets and subjects; each keeps its own zone. New ones start from the new zone.",
   "bookings.settings.timeZone.description": "The zone of the organization. It decides which day it is for everything that has no place of its own.",
   "bookings.settings.timeZone.field": "Time zone",
   "bookings.settings.timeZone.firstSave": "Choose the time zone first. Nothing can be booked until it is saved; the other sections unlock after that.",

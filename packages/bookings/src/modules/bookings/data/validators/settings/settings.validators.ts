@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { canonicalTimeZone, isIsoDate, isValidTimeZone } from '../../../../../lib/time/day-ranges'
+import { isIsoDate, isValidTimeZone, normalizeTimeZone } from '../../../../../lib/time/day-ranges'
 import { BOOKING_CONFLICT_POLICIES } from '../../../../../lib/pure-engine/conflict-policy.rule'
 
 const BARE_OFFSET = /^(?:[+-]\d|(?:GMT|UTC)[+-]|Etc\/GMT[+-])/i
@@ -13,7 +13,7 @@ const timeZoneSchema = z
   .trim()
   .refine((zone) => !BARE_OFFSET.test(zone), { message: 'bookings.settings.errors.timeZoneOffset', abort: true })
   .refine(isValidTimeZone, { message: 'bookings.settings.errors.timeZoneUnknown', abort: true })
-  .transform(canonicalTimeZone)
+  .transform(normalizeTimeZone)
 
 const holidaySchema = z
   .object({

@@ -19,6 +19,7 @@ export type TimeZoneSectionProps = {
     field: string
     placeholder: string
     firstSave: string
+    changeNote: string
     save: string
   }
   onChange: (zone: string) => void
@@ -40,7 +41,7 @@ export function TimeZoneSection({ value, zones, isSaved, error, saving, disabled
           <AlertDescription>{labels.firstSave}</AlertDescription>
         </Alert>
       )}
-      <FormField label={labels.field} required error={error}>
+      <FormField label={labels.field} required error={error} description={isSaved ? labels.changeNote : undefined}>
         <ComboboxInput
           value={value}
           onChange={onChange}

@@ -18,6 +18,14 @@ describe('bookingsSettingsUpdateSchema', () => {
     expect(bookingsSettingsUpdateSchema.parse({ timeZone: input }).timeZone).toBe(expected)
   })
 
+  it.each(['Europe/Kyiv', 'Asia/Kolkata'])('keeps the current name %p instead of the legacy one ICU resolves to', (timeZone) => {
+    expect(bookingsSettingsUpdateSchema.parse({ timeZone }).timeZone).toBe(timeZone)
+  })
+
+  it('rejects an emptied threshold instead of reading it as zero', () => {
+    expect(issuesOf({ warningThresholdWorkingDays: null })).toEqual(['bookings.settings.errors.threshold'])
+  })
+
   it.each(['GMT+3', '+03:00', '-05:00', 'UTC+2', 'Etc/GMT-3'])('rejects the bare offset %p', (timeZone) => {
     expect(issuesOf({ timeZone })).toEqual(['bookings.settings.errors.timeZoneOffset'])
   })

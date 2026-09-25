@@ -1,7 +1,15 @@
-import { addDays, canonicalTimeZone, isIsoDate, isValidTimeZone, toZonedIsoDate, zonedDayStart } from './date-fns.adapter'
+import {
+  addDays,
+  isIsoDate,
+  isValidTimeZone,
+  normalizeTimeZone,
+  supportedTimeZones,
+  toZonedIsoDate,
+  zonedDayStart,
+} from './date-fns.adapter'
 import type { DayRange, IsoDate } from './types'
 
-export { canonicalTimeZone, isIsoDate, isValidTimeZone }
+export { isIsoDate, isValidTimeZone, normalizeTimeZone, supportedTimeZones }
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -13,11 +21,6 @@ type Window = {
 export type UnavailabilityZones = {
   subject: string
   organization: string
-}
-
-export function supportedTimeZones(): string[] {
-  const zones = Intl.supportedValuesOf('timeZone')
-  return zones.includes('UTC') ? zones : ['UTC', ...zones]
 }
 
 export function todayIn(now: Date, zone: string): IsoDate {

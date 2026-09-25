@@ -46,6 +46,7 @@
   "bookings.settings.threshold.field": "Días laborables",
   "bookings.settings.threshold.hint": "El mismo número controla la barra y el panel «Requieren atención».",
   "bookings.settings.threshold.title": "Aviso anticipado",
+  "bookings.settings.timeZone.changeNote": "Cambiarla no mueve los destinos ni los sujetos existentes; cada uno conserva su zona. Los nuevos toman la nueva zona.",
   "bookings.settings.timeZone.description": "La zona de la organización. Decide qué día es para todo lo que no tiene lugar propio.",
   "bookings.settings.timeZone.field": "Zona horaria",
   "bookings.settings.timeZone.firstSave": "Elige primero la zona horaria. Hasta guardarla no se puede reservar nada; las demás secciones se desbloquean después.",

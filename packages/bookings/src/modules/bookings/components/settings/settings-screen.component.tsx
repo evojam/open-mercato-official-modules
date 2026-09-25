@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { LoadingMessage } from '@open-mercato/ui/backend/detail'
 import { supportedTimeZones } from '../../../../lib/time/day-ranges'
 import { MAX_WARNING_THRESHOLD_WORKING_DAYS } from '../../data/validators'
@@ -14,7 +14,12 @@ import { WorkingCalendarSection } from './working-calendar-section.component'
 export function BookingsSettingsScreen() {
   const t = useT()
   const { view, draft, errors, savingSection, update, save } = useBookingsSettings()
+  const locale = useLocale()
   const zones = React.useMemo(() => supportedTimeZones(), [])
+  const formatDate = React.useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' })
+    return (date: string) => formatter.format(new Date(`${date}T00:00:00Z`))
+  }, [locale])
   const saveLabel = t('bookings.settings.actions.save', 'Save')
 
   if (!view || !draft) {
@@ -45,6 +50,10 @@ export function BookingsSettingsScreen() {
             'bookings.settings.timeZone.firstSave',
             'Choose the time zone first. Nothing can be booked until it is saved; the other sections unlock after that.'
           ),
+          changeNote: t(
+            'bookings.settings.timeZone.changeNote',
+            'Changing it does not move existing targets and subjects; each keeps its own zone. New ones start from the new zone.'
+          ),
           save: saveLabel,
         }}
         onChange={(timeZone) => update({ timeZone })}
@@ -58,6 +67,7 @@ export function BookingsSettingsScreen() {
         saving={savingSection === 'calendar'}
         disabled={locked}
         translateError={translateError}
+        formatDate={formatDate}
         labels={{
           title: t('bookings.settings.calendar.title', 'Working calendar'),
           description: t(

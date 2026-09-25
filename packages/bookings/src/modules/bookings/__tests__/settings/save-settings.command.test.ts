@@ -138,6 +138,20 @@ describe('bookings.settings.save', () => {
     expect(em.persist).not.toHaveBeenCalled()
   })
 
+  it('moves the version forward even when only the holidays change', async () => {
+    const before = new Date('2026-01-01T00:00:00.000Z')
+    const settings = Object.assign(new BookingsSettings(), {
+      tenantId: TENANT,
+      organizationId: ORG,
+      timeZone: 'UTC',
+      updatedAt: before,
+    })
+
+    await run({ holidays: [{ date: '2026-12-25' }] }, { settings, holidays: [] }).result
+
+    expect(settings.updatedAt.getTime()).toBeGreaterThan(before.getTime())
+  })
+
   it('writes everything in one transaction', async () => {
     const settings = Object.assign(new BookingsSettings(), { tenantId: TENANT, organizationId: ORG, timeZone: 'UTC' })
     const { result, em } = run({ holidays: [{ date: '2026-12-25' }] }, { settings, holidays: [] })

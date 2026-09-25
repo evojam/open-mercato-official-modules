@@ -39,17 +39,34 @@ function draftOf(view: BookingsSettingsView): SettingsDraft {
   }
 }
 
-function payloadOf(section: SettingsSection, draft: SettingsDraft): BookingsSettingsUpdateInput {
+type SettingsPayload = { [K in keyof BookingsSettingsUpdateInput]: BookingsSettingsUpdateInput[K] | null }
+
+const SECTION_FIELDS: Record<SettingsSection, ReadonlyArray<keyof SettingsDraft>> = {
+  timeZone: ['timeZone'],
+  calendar: ['freeWeekdays', 'holidays'],
+  threshold: ['warningThresholdWorkingDays'],
+  policy: ['conflictPolicy'],
+}
+
+function payloadOf(section: SettingsSection, draft: SettingsDraft): SettingsPayload {
   switch (section) {
     case 'timeZone':
       return { timeZone: draft.timeZone }
     case 'calendar':
       return { freeWeekdays: draft.freeWeekdays, holidays: draft.holidays }
-    case 'threshold':
-      return { warningThresholdWorkingDays: Number(draft.warningThresholdWorkingDays) }
+    case 'threshold': {
+      const typed = draft.warningThresholdWorkingDays.trim()
+      return { warningThresholdWorkingDays: typed === '' ? null : Number(typed) }
+    }
     case 'policy':
       return { conflictPolicy: draft.conflictPolicy }
   }
+}
+
+function withSavedSection(current: SettingsDraft, saved: SettingsDraft, section: SettingsSection): SettingsDraft {
+  const next = { ...current }
+  for (const field of SECTION_FIELDS[section]) Object.assign(next, { [field]: saved[field] })
+  return next
 }
 
 function errorsOf(body: ErrorBody | null): SettingsErrors {
@@ -107,18 +124,22 @@ export function useBookingsSettings() {
           body: JSON.stringify(payloadOf(section, draft)),
         })
         if (call.ok && call.result) {
-          apply(call.result as BookingsSettingsView)
+          const saved = call.result as BookingsSettingsView
+          setView(saved)
+          setDraft((current) => (current ? withSavedSection(current, draftOf(saved), section) : draftOf(saved)))
+          setErrors({})
           flash(t('bookings.settings.messages.saved', 'Settings saved.'), 'success')
           return
         }
         const body = call.result as ErrorBody | null
         setErrors(errorsOf(body))
-        flash(t(body?.error ?? 'bookings.settings.errors.saveFailed', 'Failed to save booking settings.'), 'error')
+        const message = body?.error ?? 'bookings.settings.errors.saveFailed'
+        flash(t(message, message), 'error')
       } finally {
         setSavingSection(null)
       }
     },
-    [apply, draft, t]
+    [draft, t]
   )
 
   return { view, draft, errors, loading, savingSection, update, save, reload }

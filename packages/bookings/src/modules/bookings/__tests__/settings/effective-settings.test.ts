@@ -57,7 +57,7 @@ describe('resolveEffectiveBookingsSettings', () => {
 
     await resolveEffectiveBookingsSettings(asEm, SCOPE)
 
-    expect(em.findOne).toHaveBeenCalledWith(BookingsSettings, SCOPE)
+    expect(em.findOne).toHaveBeenCalledWith(BookingsSettings, SCOPE, undefined)
     expect(em.find).toHaveBeenCalledWith(BookingsHoliday, { ...SCOPE, deletedAt: null }, { orderBy: { holidayOn: 'asc' } })
   })
 

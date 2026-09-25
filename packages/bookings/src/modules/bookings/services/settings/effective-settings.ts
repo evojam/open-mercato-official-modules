@@ -1,4 +1,5 @@
-import type { EntityManager } from '@mikro-orm/core'
+import type { EntityManager } from '@mikro-orm/postgresql'
+import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import type { WorkingCalendar } from '../../../../lib/pure-engine'
 import type { IsoDate, Weekday } from '../../../../lib/time/types'
 import { BookingsHoliday, BookingsSettings } from '../../data/entities'
@@ -54,14 +55,22 @@ function freeWeekdaysOf(settings: BookingsSettings): Weekday[] {
 }
 
 export async function loadBookingsSettings(em: EntityManager, scope: BookingsScope): Promise<BookingsSettings | null> {
-  return em.findOne(BookingsSettings, { tenantId: scope.tenantId, organizationId: scope.organizationId })
+  return findOneWithDecryption(
+    em,
+    BookingsSettings,
+    { tenantId: scope.tenantId, organizationId: scope.organizationId },
+    undefined,
+    scope
+  )
 }
 
 export async function loadBookingsHolidays(em: EntityManager, scope: BookingsScope): Promise<BookingsHoliday[]> {
-  return em.find(
+  return findWithDecryption(
+    em,
     BookingsHoliday,
     { tenantId: scope.tenantId, organizationId: scope.organizationId, deletedAt: null },
-    { orderBy: { holidayOn: 'asc' } }
+    { orderBy: { holidayOn: 'asc' } },
+    scope
   )
 }
 

@@ -88,7 +88,8 @@ const saveBookingsSettingsCommand: CommandHandler<BookingsSettingsSaveInput, Boo
         [
           () => {
             const settings = existing ?? em.create(BookingsSettings, { ...scope, timeZone })
-            if (!existing) em.persist(settings)
+            if (existing) existing.updatedAt = new Date()
+            else em.persist(settings)
             applyScalars(settings, input)
           },
           async () => {

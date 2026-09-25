@@ -15,7 +15,7 @@ import { BOOKINGS_SETTINGS_RESOURCE_KIND } from '../../commands/settings/save-se
 import { BOOKING_CONFLICT_POLICIES } from '../../data/entities'
 import { bookingsSettingsSaveSchema, bookingsSettingsUpdateSchema } from '../../data/validators'
 import type { BookingsSettingsSaveInput } from '../../data/validators'
-import { readBookingsSettingsView } from '../../services/settings/effective-settings'
+import { loadBookingsSettings, readBookingsSettingsView } from '../../services/settings/effective-settings'
 import type { BookingsSettingsView } from '../../services/settings/effective-settings'
 
 export const metadata = {
@@ -70,7 +70,7 @@ function errorResponse(err: unknown, fallbackKey: string, fallback: string, tran
   if (err instanceof z.ZodError) {
     return NextResponse.json(
       {
-        error: translate('bookings.settings.errors.invalid', 'Invalid settings'),
+        error: 'bookings.settings.errors.invalid',
         code: 'invalid_input',
         details: err.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
       },
@@ -96,7 +96,7 @@ export async function PUT(req: Request) {
     const { ctx, em, tenantId, organizationId, userId, translate } = await resolveSettingsContext(req)
     const update = bookingsSettingsUpdateSchema.parse(await readJsonSafe(req, {}))
     const input = bookingsSettingsSaveSchema.parse(withScopedPayload(update, ctx, translate))
-    const existing = await readBookingsSettingsView(em, { tenantId, organizationId })
+    const existing = await loadBookingsSettings(em, { tenantId, organizationId })
 
     const guardInput = {
       tenantId,
@@ -104,7 +104,7 @@ export async function PUT(req: Request) {
       userId,
       resourceKind: BOOKINGS_SETTINGS_RESOURCE_KIND,
       resourceId: organizationId,
-      operation: existing.isSaved ? ('update' as const) : ('create' as const),
+      operation: existing ? ('update' as const) : ('create' as const),
       requestMethod: req.method,
       requestHeaders: req.headers,
     }

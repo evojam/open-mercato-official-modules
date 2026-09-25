@@ -46,6 +46,7 @@
   "bookings.settings.threshold.field": "Dni robocze",
   "bookings.settings.threshold.hint": "Ta sama liczba steruje paskiem i panelem „Wymagają uwagi”.",
   "bookings.settings.threshold.title": "Wczesne ostrzeganie",
+  "bookings.settings.timeZone.changeNote": "Zmiana nie przesuwa istniejących celów ani podmiotów, każdy zostaje przy swojej strefie. Nowe dostaną nową strefę.",
   "bookings.settings.timeZone.description": "Strefa organizacji. Decyduje, jaki jest dzień, dla wszystkiego, co nie ma własnego miejsca.",
   "bookings.settings.timeZone.field": "Strefa czasowa",
   "bookings.settings.timeZone.firstSave": "Najpierw wybierz strefę czasową. Do jej zapisania nic nie da się zarezerwować; pozostałe sekcje odblokują się potem.",

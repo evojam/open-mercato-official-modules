@@ -27,9 +27,18 @@ function assertTimeZone(zone: string): void {
   if (!isValidTimeZone(zone)) throw new TypeError(`Unknown time zone "${zone}"`)
 }
 
-export function canonicalTimeZone(zone: string): string {
+let listedZones: readonly string[] | null = null
+
+export function supportedTimeZones(): readonly string[] {
+  listedZones ??= ['UTC', ...Intl.supportedValuesOf('timeZone').filter((zone) => zone !== 'UTC')]
+  return listedZones
+}
+
+// Not `resolvedOptions().timeZone`: ICU canonicalizes to legacy names (Europe/Kyiv → Europe/Kiev).
+export function normalizeTimeZone(zone: string): string {
   assertTimeZone(zone)
-  return new Intl.DateTimeFormat('en', { timeZone: zone }).resolvedOptions().timeZone
+  const lower = zone.toLowerCase()
+  return supportedTimeZones().find((listed) => listed.toLowerCase() === lower) ?? zone
 }
 
 function isoOf(utcMidnightMs: number): IsoDate {

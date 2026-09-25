@@ -46,6 +46,7 @@
   "bookings.settings.threshold.field": "Arbeitstage",
   "bookings.settings.threshold.hint": "Dieselbe Zahl steuert die Leiste und das Panel „Benötigt Aufmerksamkeit“.",
   "bookings.settings.threshold.title": "Frühwarnung",
+  "bookings.settings.timeZone.changeNote": "Eine Änderung verschiebt keine bestehenden Ziele und Objekte; jedes behält seine eigene Zone. Neue übernehmen die neue Zone.",
   "bookings.settings.timeZone.description": "Die Zone der Organisation. Sie entscheidet, welcher Tag es ist, für alles ohne eigenen Ort.",
   "bookings.settings.timeZone.field": "Zeitzone",
   "bookings.settings.timeZone.firstSave": "Wählen Sie zuerst die Zeitzone. Bis sie gespeichert ist, kann nichts gebucht werden; die anderen Abschnitte werden danach freigegeben.",

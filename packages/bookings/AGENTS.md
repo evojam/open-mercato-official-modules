@@ -43,7 +43,9 @@ Prose says "reservation" for the thing being booked; every identifier says `book
    configuration, not a booking.
 7. Use `enforceCommandOptimisticLockWithGuards`, never the older `enforceCommandOptimisticLock`.
    Reason: core's coverage test fails any new direct call of the older helper, and this
-   package runs a copy of that test.
+   package runs a copy of that test. The repository still builds against platform 0.6.3,
+   which has neither helper; until it syncs to 0.8 or later, commands carry no optimistic lock
+   and never a hand-rolled substitute (D13).
 8. Conflict policy is data, never a constant in code: `bookings_settings.conflict_policy` is
    `advisory` (default — the write goes through, the conflict is reported) or `reject` (a
    write that creates an overlap fails), with exceptions per subject category in
@@ -161,7 +163,11 @@ bookings.coverage_gap.detected
 Booking events carry `clientBroadcast: true`. Complete, reopen and no-show ride `.updated`
 with the status change in the payload; only cancel has its own name.
 
-### API routes (BC #7 — STABLE) — TODO: URLs are fixed here when the routes exist
+### API routes (BC #7 — STABLE) — URLs are fixed here as the routes land
+
+```
+GET  PUT  /api/bookings/settings         bookings.manage_settings; PUT saves any subset of sections
+```
 
 Operations from spec §12:
 

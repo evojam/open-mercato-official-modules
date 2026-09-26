@@ -255,3 +255,28 @@ Open, for the maintainers: a job that really covers a whole weekend cannot be ex
 working days. The natural answer is a third duration unit, `calendar_days`, next to
 `working_days` and `minutes` (D9) — a value in the unit check and a branch in the engine. Until
 then such a job is two bookings.
+
+## Platform
+
+### D13 — The repository builds against platform 0.6.3, not the release the spec was written for
+
+*spec §12, §15*
+
+The specification and this package's `AGENTS.md` were written against core's `develop`. The
+repository itself is pinned to `0.6.3-develop` by its last `platform:sync` (May 2026), and two
+things the design assumes are not in that release:
+
+- **Optimistic locking.** `enforceCommandOptimisticLockWithGuards` arrived in core in June. On
+  0.6.3 there is no lock helper at all, so write commands save last-writer-wins. No module-local
+  substitute is written — it would have to be torn out again.
+- **Command discovery.** The newer generator scans `commands/**`; the 0.6.3 one does not. The
+  module registers its commands the way `forms` does, through a `commands/index.ts` barrel
+  imported by the module's `index.ts`.
+
+Syncing to 0.8.0 was tried and is one step away: it needs Yarn 4.17 (0.8 pulls TypeScript 7),
+`bullmq-otel` and `@tanstack/react-table` 9 in the sandbox, and a change to `forms`, whose
+tables still use the `react-table` 8 types. That last part belongs to the `forms` authors, so
+the sync is left to the maintainers. When it lands: add the lock to every write command (the
+settings save compares the `updatedAt` its screen already reads), drop the barrel if the
+generator then registers commands twice, raise the peer ranges to `^0.8.0`, and delete this
+delta.

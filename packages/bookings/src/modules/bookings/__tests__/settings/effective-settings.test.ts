@@ -2,6 +2,7 @@ import type { EntityManager } from '@mikro-orm/core'
 import { BookingsHoliday, BookingsSettings } from '../../data/entities'
 import {
   BOOKINGS_SETTINGS_DEFAULTS,
+  readBookingsSettingsView,
   resolveEffectiveBookingsSettings,
 } from '../../services/settings/effective-settings'
 
@@ -56,8 +57,8 @@ describe('resolveEffectiveBookingsSettings', () => {
 
     await resolveEffectiveBookingsSettings(asEm, SCOPE)
 
-    expect(em.findOne).toHaveBeenCalledWith(BookingsSettings, SCOPE)
-    expect(em.find).toHaveBeenCalledWith(BookingsHoliday, { ...SCOPE, deletedAt: null })
+    expect(em.findOne).toHaveBeenCalledWith(BookingsSettings, SCOPE, undefined)
+    expect(em.find).toHaveBeenCalledWith(BookingsHoliday, { ...SCOPE, deletedAt: null }, { orderBy: { holidayOn: 'asc' } })
   })
 
   it('keeps its defaults equal to the column defaults, so a first save changes nothing silently', async () => {
@@ -69,5 +70,35 @@ describe('resolveEffectiveBookingsSettings', () => {
     expect([...effective.calendar.freeWeekdays].sort()).toEqual([...BOOKINGS_SETTINGS_DEFAULTS.freeWeekdays].sort())
     expect(effective.warningThresholdWorkingDays).toBe(BOOKINGS_SETTINGS_DEFAULTS.warningThresholdWorkingDays)
     expect(effective.conflictPolicy).toBe(BOOKINGS_SETTINGS_DEFAULTS.conflictPolicy)
+  })
+})
+
+describe('readBookingsSettingsView', () => {
+  it('tells the screen nothing was saved yet and keeps the zone empty', async () => {
+    const { asEm } = fakeEm(null)
+
+    await expect(readBookingsSettingsView(asEm, SCOPE)).resolves.toMatchObject({
+      isSaved: false,
+      timeZone: null,
+      updatedAt: null,
+    })
+  })
+
+  it('returns holidays with their labels and the version the screen saves against', async () => {
+    const settings = Object.assign(new BookingsSettings(), {
+      timeZone: 'Europe/Warsaw',
+      updatedAt: new Date('2026-09-24T10:00:00.000Z'),
+    })
+    const labelled = Object.assign(holiday('2026-11-11'), { label: 'Independence Day' })
+    const { asEm } = fakeEm(settings, [labelled, holiday('2026-12-25')])
+
+    await expect(readBookingsSettingsView(asEm, SCOPE)).resolves.toMatchObject({
+      isSaved: true,
+      holidays: [
+        { date: '2026-11-11', label: 'Independence Day' },
+        { date: '2026-12-25', label: null },
+      ],
+      updatedAt: '2026-09-24T10:00:00.000Z',
+    })
   })
 })

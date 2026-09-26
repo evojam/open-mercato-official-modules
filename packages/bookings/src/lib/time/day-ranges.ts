@@ -1,7 +1,15 @@
-import { addDays, isValidTimeZone, toZonedIsoDate, zonedDayStart } from './date-fns.adapter'
+import {
+  addDays,
+  isIsoDate,
+  isValidTimeZone,
+  normalizeTimeZone,
+  supportedTimeZones,
+  toZonedIsoDate,
+  zonedDayStart,
+} from './date-fns.adapter'
 import type { DayRange, IsoDate } from './types'
 
-export { isValidTimeZone }
+export { isIsoDate, isValidTimeZone, normalizeTimeZone, supportedTimeZones }
 
 const DAY_MS = 24 * 60 * 60 * 1000
 

@@ -1,8 +1,8 @@
-import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { nextPaletteColor } from '../../../../lib/timeline/palette'
 import { Booking, BookingTarget, OPEN_BOOKING_STATUSES } from '../../data/entities'
 import { bookingTargetCreateSchema, bookingTargetUpdateSchema } from '../../data/validators'
 import type { BookingTargetCreateInput } from '../../data/validators'
+import { bookingsErrors } from '../../lib/errors'
 import { requireBookingsSettings } from '../../services/settings/effective-settings'
 import { registerScopedRecordCommands } from '../shared/scoped-record.commands'
 
@@ -42,12 +42,6 @@ export const bookingTargetCommands = registerScopedRecordCommands<BookingTarget,
       deletedAt: null,
       status: { $in: [...OPEN_BOOKING_STATUSES] },
     })
-    if (openBookings > 0) {
-      throw new CrudHttpError(409, {
-        error: 'bookings.targets.errors.inUse',
-        code: 'target_in_use',
-        details: { openBookings },
-      })
-    }
+    if (openBookings > 0) throw bookingsErrors.targetInUse(openBookings)
   },
 })

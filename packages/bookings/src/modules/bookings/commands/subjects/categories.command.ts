@@ -1,8 +1,8 @@
-import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { nextPaletteColor } from '../../../../lib/timeline/palette'
 import { BookingConflictPolicyException, BookingSubject, BookingSubjectCategory } from '../../data/entities'
 import { bookingCategoryCreateSchema, bookingCategoryUpdateSchema } from '../../data/validators'
 import type { BookingCategoryCreateInput } from '../../data/validators'
+import { bookingsErrors } from '../../lib/errors'
 import { registerScopedRecordCommands } from '../shared/scoped-record.commands'
 
 export const BOOKING_CATEGORY_RESOURCE_KIND = 'bookings.subject_category'
@@ -38,12 +38,6 @@ export const bookingCategoryCommands = registerScopedRecordCommands<BookingSubje
       em.count(BookingSubject, { ...scope, category: category.id }),
       em.count(BookingConflictPolicyException, { ...scope, category: category.id }),
     ])
-    if (subjects > 0 || exceptions > 0) {
-      throw new CrudHttpError(409, {
-        error: 'bookings.categories.errors.inUse',
-        code: 'category_in_use',
-        details: { subjects, exceptions },
-      })
-    }
+    if (subjects > 0 || exceptions > 0) throw bookingsErrors.categoryInUse(subjects, exceptions)
   },
 })

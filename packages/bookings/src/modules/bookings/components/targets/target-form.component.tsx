@@ -68,7 +68,7 @@ export function TargetForm({ mode, initialValues, isLoading, onSubmit, onDelete 
                 colors={TARGET_PALETTE}
                 value={typeof value === 'string' ? value : null}
                 disabled={disabled}
-                labelFor={(_color, index) => t('bookings.colors.option', 'Color {n}').replace('{n}', String(index + 1))}
+                labelFor={(_color, index) => t('bookings.colors.option', 'Color {n}', { n: index + 1 })}
                 onChange={setValue}
               />
             ),

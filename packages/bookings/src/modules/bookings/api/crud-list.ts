@@ -17,11 +17,15 @@ export type CrudListQuery = z.infer<typeof crudListQuerySchema>
 
 export function nameAndIdFilters(query: CrudListQuery): Record<string, unknown> {
   const filters: Record<string, unknown> = {}
-  const ids = [query.id ?? '', ...(query.ids ?? '').split(',')]
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0)
-  if (ids.length > 0) filters.id = { $in: ids }
+  if (query.id) filters.id = { $in: [query.id] }
   const term = query.search?.trim()
   if (term) filters.name = { $ilike: `%${escapeLikePattern(term)}%` }
   return filters
+}
+
+export function sortItemsByName(payload: { items?: unknown[] }): void {
+  if (!Array.isArray(payload.items)) return
+  payload.items.sort((a, b) =>
+    String((a as { name?: unknown }).name ?? '').localeCompare(String((b as { name?: unknown }).name ?? ''))
+  )
 }

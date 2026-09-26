@@ -84,7 +84,7 @@ export function CategoryForm({ mode, initialValues, isLoading, onSubmit, onDelet
               <IconPicker
                 value={typeof value === 'string' ? value : null}
                 disabled={disabled}
-                labelFor={(name) => t('bookings.categories.form.iconOption', 'Icon {name}').replace('{name}', name)}
+                labelFor={(name) => t('bookings.categories.form.iconOption', 'Icon {name}', { name })}
                 onChange={setValue}
               />
             ),
@@ -100,7 +100,7 @@ export function CategoryForm({ mode, initialValues, isLoading, onSubmit, onDelet
                 colors={TARGET_PALETTE}
                 value={typeof value === 'string' ? value : null}
                 disabled={disabled}
-                labelFor={(_color, index) => t('bookings.colors.option', 'Color {n}').replace('{n}', String(index + 1))}
+                labelFor={(_color, index) => t('bookings.colors.option', 'Color {n}', { n: index + 1 })}
                 onChange={setValue}
               />
             ),

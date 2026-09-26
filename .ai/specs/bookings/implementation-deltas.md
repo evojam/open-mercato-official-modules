@@ -319,6 +319,8 @@ it, for `forms` or for this package, so the sandbox lists `bookings` with no ent
 What works without them: CRUD routes, commands, lists and forms (`DataTable` receives its rows
 from `apiCall`; `entityId` is optional). What does not: the query index and search over the
 module's entities, and custom fields on them. The CRUD routes therefore declare no `indexer`
-until the ids exist. The question of how an official-modules package should ship `generated/`
+until the ids exist. Without it the platform lists straight from the ORM with neither paging
+nor ordering, so the lists are sorted by name in an `afterList` hook and return every row; both
+go back to the platform once the ids exist. The question of how an official-modules package should ship `generated/`
 is raised with the maintainers; when it is answered, add the `indexer` entries and custom-field
 `entityId`s and delete this delta.

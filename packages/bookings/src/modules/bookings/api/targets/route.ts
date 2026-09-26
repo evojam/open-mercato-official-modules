@@ -4,7 +4,7 @@ import { makeCrudRoute } from '@open-mercato/shared/lib/crud/factory'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import { BookingTarget } from '../../data/entities'
 import { bookingTargetCreateSchema, bookingTargetUpdateSchema } from '../../data/validators'
-import { crudListQuerySchema, nameAndIdFilters } from '../crud-list'
+import { crudListQuerySchema, nameAndIdFilters, sortItemsByName } from '../crud-list'
 import { createBookingsCrudOpenApi, createPagedListResponseSchema, defaultOkResponseSchema } from '../openapi'
 
 const routeMetadata = {
@@ -30,6 +30,9 @@ const crud = makeCrudRoute({
   list: {
     schema: crudListQuerySchema,
     buildFilters: async (query) => nameAndIdFilters(query),
+  },
+  hooks: {
+    afterList: async (payload) => sortItemsByName(payload),
   },
   actions: {
     create: {

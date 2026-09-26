@@ -6,11 +6,10 @@ import type { CommandHandler, CommandRuntimeContext } from '@open-mercato/shared
 import { buildChanges } from '@open-mercato/shared/lib/commands/helpers'
 import { ensureOrganizationScope, ensureTenantScope } from '@open-mercato/shared/lib/commands/scope'
 import { extractUndoPayload } from '@open-mercato/shared/lib/commands/undo'
-import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import type { ZodType } from 'zod'
-import { validationDetails } from '../../lib/validation-details'
+import { bookingsErrors } from '../../lib/errors'
 import type { BookingsScope } from '../../services/settings/effective-settings'
 
 type DecryptionScope = { tenantId?: string | null; organizationId?: string | null }
@@ -49,13 +48,7 @@ export type ScopedRecordDefinition<TEntity extends ScopedRecord, TCreate extends
 
 function parse<T>(schema: ZodType<T>, raw: unknown): T {
   const parsed = schema.safeParse(raw ?? {})
-  if (!parsed.success) {
-    throw new CrudHttpError(400, {
-      error: 'bookings.errors.invalidInput',
-      code: 'invalid_input',
-      details: validationDetails(parsed.error),
-    })
-  }
+  if (!parsed.success) throw bookingsErrors.invalidInput(parsed.error)
   return parsed.data
 }
 
@@ -67,7 +60,7 @@ async function flushOrConflict(em: EntityManager, duplicate: { error: string; co
   try {
     await em.flush()
   } catch (error) {
-    if (error instanceof UniqueConstraintViolationException) throw new CrudHttpError(409, duplicate)
+    if (error instanceof UniqueConstraintViolationException) throw bookingsErrors.duplicate(duplicate.error, duplicate.code)
     throw error
   }
 }
@@ -100,7 +93,7 @@ export function registerScopedRecordCommands<TEntity extends ScopedRecord, TCrea
 
   const findInScope = async (em: EntityManager, ctx: CommandRuntimeContext, id: string): Promise<TEntity> => {
     const record = await find(em, id, { tenantId: ctx.auth?.tenantId ?? null, organizationId: ctx.selectedOrganizationId ?? null })
-    if (!record) throw new CrudHttpError(404, { error: definition.errors.notFound, code: 'not_found' })
+    if (!record) throw bookingsErrors.notFound(definition.errors.notFound)
     ensureTenantScope(ctx, record.tenantId)
     ensureOrganizationScope(ctx, record.organizationId)
     return record
@@ -153,6 +146,7 @@ export function registerScopedRecordCommands<TEntity extends ScopedRecord, TCrea
       const em = entityManagerOf(ctx)
       const record = await find(em, after.id, after)
       if (!record) return
+      await definition.beforeDelete?.(em, record)
       record.deletedAt = new Date()
       record.updatedAt = new Date()
       await em.flush()
@@ -216,7 +210,7 @@ export function registerScopedRecordCommands<TEntity extends ScopedRecord, TCrea
       return record ? { before: snapshotOf(record) } : {}
     },
     async execute(input, ctx) {
-      if (!input?.id) throw new CrudHttpError(400, { error: 'bookings.errors.idRequired', code: 'id_required' })
+      if (!input?.id) throw bookingsErrors.idRequired()
       const em = entityManagerOf(ctx)
       const record = await findInScope(em, ctx, input.id)
       await definition.beforeDelete?.(em, record)

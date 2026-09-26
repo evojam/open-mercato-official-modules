@@ -1,10 +1,10 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
-import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import type { WorkingCalendar } from '../../../../lib/pure-engine'
 import type { IsoDate, Weekday } from '../../../../lib/time/types'
 import { BookingsHoliday, BookingsSettings } from '../../data/entities'
 import type { BookingConflictPolicy } from '../../data/entities'
+import { bookingsErrors } from '../../lib/errors'
 
 export type BookingsScope = {
   tenantId: string
@@ -67,9 +67,7 @@ export async function loadBookingsSettings(em: EntityManager, scope: BookingsSco
 
 export async function requireBookingsSettings(em: EntityManager, scope: BookingsScope): Promise<BookingsSettings> {
   const settings = await loadBookingsSettings(em, scope)
-  if (!settings) {
-    throw new CrudHttpError(409, { error: 'bookings.settings.errors.settingsRequired', code: 'settings_required' })
-  }
+  if (!settings) throw bookingsErrors.settingsRequired()
   return settings
 }
 

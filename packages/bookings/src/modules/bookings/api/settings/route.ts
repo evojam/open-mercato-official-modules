@@ -5,7 +5,7 @@ import { resolveOrganizationScopeForRequest } from '@open-mercato/core/modules/d
 import { withScopedPayload } from '@open-mercato/shared/lib/api/scoped'
 import { getAuthFromRequest } from '@open-mercato/shared/lib/auth/server'
 import type { CommandBus, CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
-import { CrudHttpError, isCrudHttpError } from '@open-mercato/shared/lib/crud/errors'
+import { isCrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { runCrudMutationGuardAfterSuccess, validateCrudMutationGuard } from '@open-mercato/shared/lib/crud/mutation-guard'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { readJsonSafe } from '@open-mercato/shared/lib/http/readJsonSafe'
@@ -17,7 +17,7 @@ import { bookingsSettingsSaveSchema, bookingsSettingsUpdateSchema } from '../../
 import type { BookingsSettingsSaveInput } from '../../data/validators'
 import { loadBookingsSettings, readBookingsSettingsView } from '../../services/settings/effective-settings'
 import type { BookingsSettingsView } from '../../services/settings/effective-settings'
-import { validationDetails } from '../../lib/validation-details'
+import { bookingsErrors } from '../../lib/errors'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['bookings.manage_settings'] },
@@ -37,17 +37,10 @@ async function resolveSettingsContext(req: Request): Promise<SettingsRouteContex
   const container = await createRequestContainer()
   const auth = await getAuthFromRequest(req)
   const { translate } = await resolveTranslations()
-  if (!auth || !auth.tenantId) {
-    throw new CrudHttpError(401, { error: translate('bookings.errors.unauthorized', 'Unauthorized') })
-  }
+  if (!auth || !auth.tenantId) throw bookingsErrors.unauthorized()
   const scope = await resolveOrganizationScopeForRequest({ container, auth, request: req })
   const organizationId = scope?.selectedId ?? auth.orgId ?? null
-  if (!organizationId) {
-    throw new CrudHttpError(400, {
-      error: translate('bookings.errors.organizationRequired', 'Organization context is required'),
-      code: 'organization_required',
-    })
-  }
+  if (!organizationId) throw bookingsErrors.organizationRequired()
   const ctx: CommandRuntimeContext = {
     container,
     auth,
@@ -69,14 +62,8 @@ async function resolveSettingsContext(req: Request): Promise<SettingsRouteContex
 function errorResponse(err: unknown, fallbackKey: string, fallback: string, translate: (key: string, fallback?: string) => string) {
   if (isCrudHttpError(err)) return NextResponse.json(err.body, { status: err.status })
   if (err instanceof z.ZodError) {
-    return NextResponse.json(
-      {
-        error: 'bookings.settings.errors.invalid',
-        code: 'invalid_input',
-        details: validationDetails(err),
-      },
-      { status: 400 }
-    )
+    const invalid = bookingsErrors.invalidInput(err, 'bookings.settings.errors.invalid')
+    return NextResponse.json(invalid.body, { status: invalid.status })
   }
   console.error(fallbackKey, err)
   return NextResponse.json({ error: translate(fallbackKey, fallback) }, { status: 500 })

@@ -217,7 +217,7 @@ in the daily scan (spec §9, §12).
 ## Internal-Only Surfaces
 
 Subject to change without deprecation; nothing outside this package may import them: entity
-classes under `data/entities/`, `services/`, `commands/`, `components/`, `lib/`, migrations,
+classes in `data/entities.ts`, `services/`, `commands/`, `components/`, `lib/`, migrations,
 backend pages and widgets. Other modules reach this module only through the API routes, the
 events and `bookingsOccupancyService` listed above.
 

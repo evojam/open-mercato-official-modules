@@ -53,7 +53,7 @@ export default function TargetsPage() {
   const handleDelete = React.useCallback(
     async (row: TargetRow) => {
       const confirmed = await confirm({
-        title: t('bookings.targets.confirmDelete', 'Delete "{name}"?').replace('{name}', row.name),
+        title: t('bookings.targets.confirmDelete', 'Delete "{name}"?', { name: row.name }),
         variant: 'destructive',
       })
       if (!confirmed) return

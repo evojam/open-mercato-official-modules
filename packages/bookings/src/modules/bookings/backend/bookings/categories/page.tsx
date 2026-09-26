@@ -54,7 +54,7 @@ export default function CategoriesPage() {
   const handleDelete = React.useCallback(
     async (row: CategoryRow) => {
       const confirmed = await confirm({
-        title: t('bookings.categories.confirmDelete', 'Delete "{name}"?').replace('{name}', row.name),
+        title: t('bookings.categories.confirmDelete', 'Delete "{name}"?', { name: row.name }),
         variant: 'destructive',
       })
       if (!confirmed) return

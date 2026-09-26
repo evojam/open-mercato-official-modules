@@ -1,19 +1,11 @@
 import { z } from 'zod'
-import { isIsoDate, isValidTimeZone, normalizeTimeZone } from '../../../../../lib/time/day-ranges'
+import { isIsoDate } from '../../../../../lib/time/day-ranges'
 import { BOOKING_CONFLICT_POLICIES } from '../../../../../lib/pure-engine/conflict-policy.rule'
-
-const BARE_OFFSET = /^(?:[+-]\d|(?:GMT|UTC)[+-]|Etc\/GMT[+-])/i
+import { timeZoneSchema } from '../shared.validators'
 
 export const MAX_WARNING_THRESHOLD_WORKING_DAYS = 250
 
 const THRESHOLD_ERROR = 'bookings.settings.errors.threshold'
-
-const timeZoneSchema = z
-  .string()
-  .trim()
-  .refine((zone) => !BARE_OFFSET.test(zone), { message: 'bookings.settings.errors.timeZoneOffset', abort: true })
-  .refine(isValidTimeZone, { message: 'bookings.settings.errors.timeZoneUnknown', abort: true })
-  .transform(normalizeTimeZone)
 
 const holidaySchema = z
   .object({

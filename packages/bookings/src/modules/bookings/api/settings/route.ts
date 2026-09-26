@@ -17,6 +17,7 @@ import { bookingsSettingsSaveSchema, bookingsSettingsUpdateSchema } from '../../
 import type { BookingsSettingsSaveInput } from '../../data/validators'
 import { loadBookingsSettings, readBookingsSettingsView } from '../../services/settings/effective-settings'
 import type { BookingsSettingsView } from '../../services/settings/effective-settings'
+import { validationDetails } from '../../lib/validation-details'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['bookings.manage_settings'] },
@@ -72,7 +73,7 @@ function errorResponse(err: unknown, fallbackKey: string, fallback: string, tran
       {
         error: 'bookings.settings.errors.invalid',
         code: 'invalid_input',
-        details: err.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
+        details: validationDetails(err),
       },
       { status: 400 }
     )
@@ -140,7 +141,7 @@ const settingsViewSchema = z.object({
 const errorSchema = z.object({
   error: z.string(),
   code: z.string().optional(),
-  details: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+  details: z.array(z.object({ path: z.array(z.union([z.string(), z.number()])), message: z.string() })).optional(),
 })
 
 export const openApi: OpenApiRouteDoc = {

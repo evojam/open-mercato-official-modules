@@ -186,7 +186,7 @@ describe('bookings.settings.save', () => {
     expect(error.status).toBe(400)
     expect(error.body).toMatchObject({
       code: 'invalid_input',
-      details: [{ path: 'timeZone', message: 'bookings.settings.errors.timeZoneOffset' }],
+      details: [{ path: ['timeZone'], message: 'bookings.errors.timeZoneOffset' }],
     })
   })
 })

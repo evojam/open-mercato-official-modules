@@ -161,16 +161,41 @@ The columns exist from the first migration; the resolution itself lands with the
 calendar, where the time vocabulary (a bare date, an instant, a wall time) and the daylight
 saving rules are built.
 
+### D14 — A target carries a color
+
+*spec §7.4, §11*
+
+The specification gives a target a name and nothing else. `bookings_targets.color` (text,
+`#rrggbb`, nullable) is added so the timeline can paint every booking of one target in one
+color and a dispatcher sees at a glance who goes where. A target created without a color takes
+the least-used color of a fixed palette (`lib/timeline/palette.ts`); the palette holds no red,
+orange or amber, because the timeline reserves those for conflicts and warnings, and a test
+checks the hues. Subject categories use the same palette. The column arrives in its own
+additive migration, so a row created before it simply has no color until someone picks one.
+
+Deleting is soft and guarded: a target with open bookings (planned or active) and a category
+still used by a subject or a policy exception answer `409` instead of disappearing under the
+records that point at them; closed bookings keep their target in history. A target's zone can
+still be changed while it has bookings, and because its bookings are read in that zone they can
+land on another day — the edit form says so. Refusing that change while open bookings exist
+belongs with the command that places bookings.
+
 ## Conventions
 
-### D7 — Entity classes are one per file, under the domain folder
+### D7 — Entity classes live in one file, as in core (reverted from one file per entity)
 
 *`AGENTS.md › Structure`*
 
-`data/entities.ts` is a barrel over `data/entities/<domain>/<name>.entity.ts`. The generator
-reads the barrel, so discovery is unchanged. Core keeps every entity of a module in one file;
-this package follows its own structure rule instead, and the same domain split is used by
-`commands/`, `services/` and `__tests__/`.
+The first version split the entities one per file under `data/entities/<domain>/`, behind a
+`data/entities.ts` barrel, on the assumption that the generator reads the barrel. It does not:
+the entity-id generator parses the text of `data/entities.ts` for `export class` declarations
+and does not follow `export { X } from`, so the module registered no entity ids at all. The
+ORM and migrations were unaffected, which is why it went unnoticed until the first CRUD screen.
+All eight classes now sit in `data/entities.ts`, declared in dependency order, as every core
+module does. The domain split stays everywhere else — `commands/`, `services/`, `validators/`,
+`components/`, `__tests__/`.
+
+This is necessary but not sufficient in this repository — see D15.
 
 ### D8 — Lists are native columns or tables, never `jsonb`
 
@@ -280,3 +305,20 @@ the sync is left to the maintainers. When it lands: add the lock to every write 
 settings save compares the `updatedAt` its screen already reads), drop the barrel if the
 generator then registers commands twice, raise the peer ranges to `^0.8.0`, and delete this
 delta.
+
+### D15 — The package ships no generated entity ids yet
+
+*spec §12, §14*
+
+In a standalone application the generator reads a package from `dist/`, where
+`data/entities.ts` is compiled JavaScript with no class declarations, so entity ids come only
+from a `generated/` folder the package ships — core's packages (for example `webhooks`) carry
+one, produced by the generator in the platform monorepo. Nothing in this repository produces
+it, for `forms` or for this package, so the sandbox lists `bookings` with no entity ids.
+
+What works without them: CRUD routes, commands, lists and forms (`DataTable` receives its rows
+from `apiCall`; `entityId` is optional). What does not: the query index and search over the
+module's entities, and custom fields on them. The CRUD routes therefore declare no `indexer`
+until the ids exist. The question of how an official-modules package should ship `generated/`
+is raised with the maintainers; when it is answered, add the `indexer` entries and custom-field
+`entityId`s and delete this delta.

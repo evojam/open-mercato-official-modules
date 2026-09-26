@@ -64,10 +64,11 @@ Prose says "reservation" for the thing being booked; every identifier says `book
     syncing a subject, placing a booking — until the organization has a settings row, with
     `409 settings_required`. The zone is required on every row and there is no default to fall
     back to; the daily scan skips such an organization instead of seeding one.
-12. Entity classes go one per file in `data/entities/<domain>/<name>.entity.ts`, re-exported
-    from the `data/entities.ts` barrel. Property order is `id` → scope (`organizationId`,
-    `tenantId`) → relations → own columns → timestamps, because property order is column
-    order in the generated migration.
+12. Every entity class is declared directly in `data/entities.ts` (`export class`), never
+    re-exported from another file: the entity-id generator reads only direct declarations (D7).
+    Declare a class before any class that references it. Property order is `id` → scope
+    (`organizationId`, `tenantId`) → relations → own columns → timestamps, because property
+    order is column order in the generated migration.
 
 ## Ask First
 
@@ -166,7 +167,9 @@ with the status change in the payload; only cancel has its own name.
 ### API routes (BC #7 — STABLE) — URLs are fixed here as the routes land
 
 ```
-GET  PUT  /api/bookings/settings         bookings.manage_settings; PUT saves any subset of sections
+GET  PUT  /api/bookings/settings                 bookings.manage_settings; PUT saves any subset of sections
+GET  POST PUT DELETE  /api/bookings/targets      read bookings.view, write bookings.manage_bookings
+GET  POST PUT DELETE  /api/bookings/subject-categories   read bookings.view, write bookings.manage_settings
 ```
 
 Operations from spec §12:
@@ -244,7 +247,7 @@ packages/bookings/src/
 └── modules/bookings/         everything Open Mercato discovers
     ├── index.ts              ModuleInfo metadata, re-exports features
     ├── acl.ts setup.ts di.ts events.ts notifications.ts search.ts
-    ├── data/                 entities.ts, validators.ts — barrels over entities/<domain>/,
+    ├── data/                 entities.ts (all entity classes), validators.ts — barrel over
     │                         validators/<domain>/
     ├── api/                  folder = URL; no domain folders here
     ├── backend/              folder = page path; no domain folders here

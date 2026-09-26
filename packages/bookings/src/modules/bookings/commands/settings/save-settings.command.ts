@@ -9,6 +9,7 @@ import type { Weekday } from '../../../../lib/time/types'
 import { BookingsHoliday, BookingsSettings } from '../../data/entities'
 import { bookingsSettingsSaveSchema } from '../../data/validators'
 import type { BookingsSettingsSaveInput } from '../../data/validators'
+import { validationDetails } from '../../lib/validation-details'
 import {
   FREE_WEEKDAY_COLUMNS,
   loadBookingsHolidays,
@@ -27,7 +28,7 @@ function parseInput(rawInput: unknown): BookingsSettingsSaveInput {
     throw new CrudHttpError(400, {
       error: 'bookings.settings.errors.invalid',
       code: 'invalid_input',
-      details: parsed.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
+      details: validationDetails(parsed.error),
     })
   }
   return parsed.data

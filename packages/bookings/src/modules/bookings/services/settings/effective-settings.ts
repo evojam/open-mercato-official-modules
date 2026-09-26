@@ -1,4 +1,5 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
+import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import type { WorkingCalendar } from '../../../../lib/pure-engine'
 import type { IsoDate, Weekday } from '../../../../lib/time/types'
@@ -62,6 +63,14 @@ export async function loadBookingsSettings(em: EntityManager, scope: BookingsSco
     undefined,
     scope
   )
+}
+
+export async function requireBookingsSettings(em: EntityManager, scope: BookingsScope): Promise<BookingsSettings> {
+  const settings = await loadBookingsSettings(em, scope)
+  if (!settings) {
+    throw new CrudHttpError(409, { error: 'bookings.settings.errors.settingsRequired', code: 'settings_required' })
+  }
+  return settings
 }
 
 export async function loadBookingsHolidays(em: EntityManager, scope: BookingsScope): Promise<BookingsHoliday[]> {

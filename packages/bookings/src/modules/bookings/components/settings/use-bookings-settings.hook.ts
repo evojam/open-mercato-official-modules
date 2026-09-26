@@ -26,7 +26,7 @@ export type SettingsErrors = Partial<Record<keyof SettingsDraft, string>>
 type ErrorBody = {
   error?: string
   code?: string
-  details?: Array<{ path: string; message: string }>
+  details?: Array<{ path: Array<string | number>; message: string }>
 }
 
 function draftOf(view: BookingsSettingsView): SettingsDraft {
@@ -73,7 +73,7 @@ function errorsOf(body: ErrorBody | null): SettingsErrors {
   if (body?.code === 'time_zone_required') return { timeZone: body.error }
   const errors: SettingsErrors = {}
   for (const detail of body?.details ?? []) {
-    const field = detail.path.split('.')[0] as keyof SettingsDraft
+    const field = String(detail.path[0]) as keyof SettingsDraft
     errors[field] ??= detail.message
   }
   return errors

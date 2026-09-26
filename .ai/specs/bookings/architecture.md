@@ -271,9 +271,8 @@ not from thirty hooks.
 
 ## Data
 
-Eight tables (`AGENTS.md › Public Contract Surfaces`), one entity class per file under
-`data/entities/<domain>/`, re-exported through the `data/entities.ts` barrel the generator
-reads. The spec names five; subject categories, holidays and conflict-policy exceptions are
+Eight tables (`AGENTS.md › Public Contract Surfaces`), all declared as classes directly in
+`data/entities.ts`, the only form the entity-id generator reads (D7). The spec names five; subject categories, holidays and conflict-policy exceptions are
 tables here rather than columns, and `implementation-deltas.md` says why. Every table carries
 the platform's standard columns; `bookings_settings` alone has no `deleted_at` — one deleted
 row would block creating the next, and settings are never deleted.

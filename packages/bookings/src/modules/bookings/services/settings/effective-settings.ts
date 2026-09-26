@@ -4,6 +4,7 @@ import type { WorkingCalendar } from '../../../../lib/pure-engine'
 import type { IsoDate, Weekday } from '../../../../lib/time/types'
 import { BookingsHoliday, BookingsSettings } from '../../data/entities'
 import type { BookingConflictPolicy } from '../../data/entities'
+import { bookingsErrors } from '../../lib/errors'
 
 export type BookingsScope = {
   tenantId: string
@@ -62,6 +63,12 @@ export async function loadBookingsSettings(em: EntityManager, scope: BookingsSco
     undefined,
     scope
   )
+}
+
+export async function requireBookingsSettings(em: EntityManager, scope: BookingsScope): Promise<BookingsSettings> {
+  const settings = await loadBookingsSettings(em, scope)
+  if (!settings) throw bookingsErrors.settingsRequired()
+  return settings
 }
 
 export async function loadBookingsHolidays(em: EntityManager, scope: BookingsScope): Promise<BookingsHoliday[]> {

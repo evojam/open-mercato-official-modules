@@ -121,8 +121,9 @@ place that parses input: routes hand the raw body to the command bus, the comman
 with the operation's zod schema, and everything below receives the parsed `z.output` type
 (`z.input` exists only for forms). One schema per operation, in `data/validators/<domain>/`.
 
-The command owns the transaction — `withAtomicFlush(em, phases, { transaction: true })`; the
-option is off by default, so it has to be written — and runs the `pure-engine` verdict inside
+The command owns the transaction — `withAtomicFlush(em, phases, { transaction: true })` for a
+write that touches more than one row (the option is off by default, so it has to be written);
+a write of a single row flushes directly, since one `flush` is already one statement — and runs the `pure-engine` verdict inside
 it when the policy is `reject`. A negative verdict becomes an error with a machine `code`.
 Side effects — `emitCrudSideEffects({ indexer })`, events, cache — run after the commit,
 never inside it. Commands register themselves on import: `commands/index.ts` imports every
@@ -183,10 +184,11 @@ never pass `withDeleted: true` from a read.
 `pure-engine` returns verdicts; the command or service turns a verdict the policy rejects
 into an error. Every business error extends `CrudHttpError` from
 `@open-mercato/shared/lib/crud/errors` and carries a body `{ error, code, details }`:
-`error` is the translated sentence the platform's `apiCall` and `flash` show as they are,
-`code` is a stable machine identifier the UI may use for its own copy, `details` holds the
-values for interpolation (the subject, the slot, the other side of the conflict). Errors are
-named after the business rule and defined in `lib/errors.ts`, never inline.
+`error` is an i18n key the screen translates (`t(error, error)`, so a plain sentence also
+passes), `code` is a stable machine identifier, `details` holds either the values for
+interpolation or, for invalid input, zod-shaped issues with `path` as an array so `CrudForm`
+maps them onto fields. Errors are named after the business rule and built in
+`modules/bookings/lib/errors.ts`, never inline.
 
 Why `CrudHttpError`: the platform's undo route passes it through with its status and body;
 any other error is flattened to a plain 400 "Undo failed". Under `reject`, undo that would
@@ -271,9 +273,8 @@ not from thirty hooks.
 
 ## Data
 
-Eight tables (`AGENTS.md › Public Contract Surfaces`), one entity class per file under
-`data/entities/<domain>/`, re-exported through the `data/entities.ts` barrel the generator
-reads. The spec names five; subject categories, holidays and conflict-policy exceptions are
+Eight tables (`AGENTS.md › Public Contract Surfaces`), all declared as classes directly in
+`data/entities.ts`, the only form the entity-id generator reads (D7). The spec names five; subject categories, holidays and conflict-policy exceptions are
 tables here rather than columns, and `implementation-deltas.md` says why. Every table carries
 the platform's standard columns; `bookings_settings` alone has no `deleted_at` — one deleted
 row would block creating the next, and settings are never deleted.

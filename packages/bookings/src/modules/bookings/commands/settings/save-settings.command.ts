@@ -4,11 +4,11 @@ import { registerCommand } from '@open-mercato/shared/lib/commands'
 import type { CommandHandler } from '@open-mercato/shared/lib/commands'
 import { withAtomicFlush } from '@open-mercato/shared/lib/commands/flush'
 import { ensureOrganizationScope, ensureTenantScope } from '@open-mercato/shared/lib/commands/scope'
-import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import type { Weekday } from '../../../../lib/time/types'
 import { BookingsHoliday, BookingsSettings } from '../../data/entities'
 import { bookingsSettingsSaveSchema } from '../../data/validators'
 import type { BookingsSettingsSaveInput } from '../../data/validators'
+import { bookingsErrors } from '../../lib/errors'
 import {
   FREE_WEEKDAY_COLUMNS,
   loadBookingsHolidays,
@@ -23,13 +23,7 @@ type HolidayInput = NonNullable<BookingsSettingsSaveInput['holidays']>
 
 function parseInput(rawInput: unknown): BookingsSettingsSaveInput {
   const parsed = bookingsSettingsSaveSchema.safeParse(rawInput ?? {})
-  if (!parsed.success) {
-    throw new CrudHttpError(400, {
-      error: 'bookings.settings.errors.invalid',
-      code: 'invalid_input',
-      details: parsed.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
-    })
-  }
+  if (!parsed.success) throw bookingsErrors.invalidInput(parsed.error, 'bookings.settings.errors.invalid')
   return parsed.data
 }
 
@@ -78,9 +72,7 @@ const saveBookingsSettingsCommand: CommandHandler<BookingsSettingsSaveInput, Boo
     const em = (ctx.container.resolve('em') as EntityManager).fork()
     const existing = await loadBookingsSettings(em, scope)
     const timeZone = existing?.timeZone ?? input.timeZone
-    if (!timeZone) {
-      throw new CrudHttpError(400, { error: 'bookings.settings.errors.timeZoneRequired', code: 'time_zone_required' })
-    }
+    if (!timeZone) throw bookingsErrors.timeZoneRequired()
 
     try {
       await withAtomicFlush(
@@ -99,9 +91,7 @@ const saveBookingsSettingsCommand: CommandHandler<BookingsSettingsSaveInput, Boo
         { transaction: true }
       )
     } catch (error) {
-      if (error instanceof UniqueConstraintViolationException) {
-        throw new CrudHttpError(409, { error: 'bookings.settings.errors.conflict', code: 'settings_conflict' })
-      }
+      if (error instanceof UniqueConstraintViolationException) throw bookingsErrors.settingsConflict()
       throw error
     }
 

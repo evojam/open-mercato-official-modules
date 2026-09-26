@@ -27,11 +27,11 @@ describe('bookingsSettingsUpdateSchema', () => {
   })
 
   it.each(['GMT+3', '+03:00', '-05:00', 'UTC+2', 'Etc/GMT-3'])('rejects the bare offset %p', (timeZone) => {
-    expect(issuesOf({ timeZone })).toEqual(['bookings.settings.errors.timeZoneOffset'])
+    expect(issuesOf({ timeZone })).toEqual(['bookings.errors.timeZoneOffset'])
   })
 
   it.each(['Mars/Olympus', ''])('rejects the unknown zone %p', (timeZone) => {
-    expect(issuesOf({ timeZone })).toContain('bookings.settings.errors.timeZoneUnknown')
+    expect(issuesOf({ timeZone })).toContain('bookings.errors.timeZoneUnknown')
   })
 
   it('rejects a calendar with no working day left', () => {

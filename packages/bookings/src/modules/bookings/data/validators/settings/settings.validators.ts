@@ -14,6 +14,13 @@ const holidaySchema = z
   })
   .strict()
 
+const policyExceptionSchema = z
+  .object({
+    categoryId: z.string().uuid({ message: 'bookings.settings.errors.exceptionCategory' }),
+    mode: z.enum(BOOKING_CONFLICT_POLICIES),
+  })
+  .strict()
+
 export const bookingsSettingsUpdateSchema = z
   .object({
     timeZone: timeZoneSchema.optional(),
@@ -36,6 +43,13 @@ export const bookingsSettingsUpdateSchema = z
       .max(MAX_WARNING_THRESHOLD_WORKING_DAYS, { message: THRESHOLD_ERROR })
       .optional(),
     conflictPolicy: z.enum(BOOKING_CONFLICT_POLICIES).optional(),
+    conflictPolicyExceptions: z
+      .array(policyExceptionSchema)
+      .max(200, { message: 'bookings.settings.errors.exceptionsTooMany' })
+      .refine((exceptions) => new Set(exceptions.map((exception) => exception.categoryId)).size === exceptions.length, {
+        message: 'bookings.settings.errors.exceptionDuplicate',
+      })
+      .optional(),
   })
   .strict()
 

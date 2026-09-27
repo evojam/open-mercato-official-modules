@@ -1,5 +1,5 @@
 import type { EntityManager } from '@mikro-orm/core'
-import { BookingsHoliday, BookingsSettings } from '../../data/entities'
+import { BookingConflictPolicyException, BookingsHoliday, BookingsSettings } from '../../data/entities'
 import {
   BOOKINGS_SETTINGS_DEFAULTS,
   readBookingsSettingsView,
@@ -15,7 +15,7 @@ function holiday(date: string): BookingsHoliday {
 function fakeEm(settings: BookingsSettings | null, holidays: BookingsHoliday[] = []) {
   const em = {
     findOne: jest.fn().mockResolvedValue(settings),
-    find: jest.fn().mockResolvedValue(holidays),
+    find: jest.fn(async (entity: unknown) => (entity === BookingsHoliday ? holidays : [])),
   }
   return { em, asEm: em as unknown as EntityManager }
 }
@@ -28,6 +28,7 @@ describe('resolveEffectiveBookingsSettings', () => {
       calendar: { freeWeekdays: [6, 0], holidays: ['2026-11-11'] },
       warningThresholdWorkingDays: 5,
       conflictPolicy: 'advisory',
+      conflictPolicyExceptions: [],
       timeZone: null,
     })
   })
@@ -59,6 +60,7 @@ describe('resolveEffectiveBookingsSettings', () => {
 
     expect(em.findOne).toHaveBeenCalledWith(BookingsSettings, SCOPE, undefined)
     expect(em.find).toHaveBeenCalledWith(BookingsHoliday, { ...SCOPE, deletedAt: null }, { orderBy: { holidayOn: 'asc' } })
+    expect(em.find).toHaveBeenCalledWith(BookingConflictPolicyException, { ...SCOPE, deletedAt: null }, undefined)
   })
 
   it('keeps its defaults equal to the column defaults, so a first save changes nothing silently', async () => {

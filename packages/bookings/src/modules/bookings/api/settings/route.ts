@@ -122,6 +122,7 @@ const settingsViewSchema = z.object({
   holidays: z.array(z.object({ date: z.string(), label: z.string().nullable() })),
   warningThresholdWorkingDays: z.number().int(),
   conflictPolicy: z.enum(BOOKING_CONFLICT_POLICIES),
+  conflictPolicyExceptions: z.array(z.object({ categoryId: z.string().uuid(), mode: z.enum(BOOKING_CONFLICT_POLICIES) })),
   updatedAt: z.string().nullable(),
 })
 

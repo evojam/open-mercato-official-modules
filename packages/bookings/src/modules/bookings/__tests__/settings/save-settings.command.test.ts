@@ -2,15 +2,37 @@ import { UniqueConstraintViolationException } from '@mikro-orm/core'
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import { isCrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { saveBookingsSettingsCommand } from '../../commands/settings/save-settings.command'
-import { BookingsHoliday, BookingsSettings } from '../../data/entities'
+import {
+  BookingConflictPolicyException,
+  BookingSubjectCategory,
+  BookingsHoliday,
+  BookingsSettings,
+} from '../../data/entities'
 
 const TENANT = '6f1c2b0e-1c7a-4a52-9d3e-5b8f0d1a2c3d'
 const ORG = '0b9e8d7c-6a5b-4c3d-8e2f-1a0b9c8d7e6f'
 const OTHER_ORG = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d'
+const DOCTORS = '11111111-1111-4111-8111-111111111111'
+const ULTRASOUND = '22222222-2222-4222-8222-222222222222'
 
 type Store = {
   settings: BookingsSettings | null
   holidays: BookingsHoliday[]
+  exceptions?: BookingConflictPolicyException[]
+  categoryIds?: string[]
+}
+
+function category(id: string): BookingSubjectCategory {
+  return Object.assign(new BookingSubjectCategory(), { id, tenantId: TENANT, organizationId: ORG })
+}
+
+function exception(categoryId: string, mode: 'advisory' | 'reject'): BookingConflictPolicyException {
+  return Object.assign(new BookingConflictPolicyException(), {
+    tenantId: TENANT,
+    organizationId: ORG,
+    category: category(categoryId),
+    mode,
+  })
 }
 
 function holiday(date: string, label: string | null = null): BookingsHoliday {
@@ -22,15 +44,27 @@ function fakeEm(store: Store, flushError?: unknown) {
   const em = {
     fork: () => em,
     findOne: jest.fn(async () => store.settings),
-    find: jest.fn(async () => store.holidays.filter((row) => !row.deletedAt)),
+    find: jest.fn(async (entity: unknown) => {
+      if (entity === BookingsHoliday) return store.holidays.filter((row) => !row.deletedAt)
+      if (entity === BookingConflictPolicyException) return (store.exceptions ?? []).filter((row) => !row.deletedAt)
+      if (entity === BookingSubjectCategory) return (store.categoryIds ?? []).map(category)
+      return []
+    }),
+    getReference: jest.fn((_entity: unknown, id: string) => category(id)),
     create: jest.fn((entity: unknown, data: object) => {
-      const instance = entity === BookingsSettings ? new BookingsSettings() : new BookingsHoliday()
+      const instance =
+        entity === BookingsSettings
+          ? new BookingsSettings()
+          : entity === BookingConflictPolicyException
+            ? new BookingConflictPolicyException()
+            : new BookingsHoliday()
       return Object.assign(instance, data)
     }),
     persist: jest.fn((entity: unknown) => {
       persisted.push(entity)
       if (entity instanceof BookingsSettings) store.settings = entity
       if (entity instanceof BookingsHoliday) store.holidays.push(entity)
+      if (entity instanceof BookingConflictPolicyException) (store.exceptions ??= []).push(entity)
     }),
     flush: jest.fn(async () => {
       if (flushError) throw flushError
@@ -150,6 +184,45 @@ describe('bookings.settings.save', () => {
     await run({ holidays: [{ date: '2026-12-25' }] }, { settings, holidays: [] }).result
 
     expect(settings.updatedAt.getTime()).toBeGreaterThan(before.getTime())
+  })
+
+  it('adds, changes and removes conflict policy exceptions to match the list', async () => {
+    const settings = Object.assign(new BookingsSettings(), { tenantId: TENANT, organizationId: ORG, timeZone: 'UTC' })
+    const kept = exception(DOCTORS, 'advisory')
+    const dropped = exception('33333333-3333-4333-8333-333333333333', 'reject')
+    const store: Store = { settings, holidays: [], exceptions: [kept, dropped], categoryIds: [DOCTORS, ULTRASOUND] }
+
+    const view = await run(
+      {
+        conflictPolicyExceptions: [
+          { categoryId: DOCTORS, mode: 'reject' },
+          { categoryId: ULTRASOUND, mode: 'advisory' },
+        ],
+      },
+      store
+    ).result
+
+    expect(kept.mode).toBe('reject')
+    expect(dropped.deletedAt).toBeInstanceOf(Date)
+    expect(view.conflictPolicyExceptions).toHaveLength(2)
+    expect(view.conflictPolicyExceptions).toEqual(
+      expect.arrayContaining([
+        { categoryId: DOCTORS, mode: 'reject' },
+        { categoryId: ULTRASOUND, mode: 'advisory' },
+      ])
+    )
+  })
+
+  it('refuses an exception for a category of another organization or a deleted one', async () => {
+    const settings = Object.assign(new BookingsSettings(), { tenantId: TENANT, organizationId: ORG, timeZone: 'UTC' })
+
+    const error = await rejection(
+      run({ conflictPolicyExceptions: [{ categoryId: DOCTORS, mode: 'reject' }] }, { settings, holidays: [], categoryIds: [] })
+        .result
+    )
+
+    expect(error.status).toBe(400)
+    expect(error.body).toMatchObject({ code: 'unknown_category', details: { categoryIds: [DOCTORS] } })
   })
 
   it('writes everything in one transaction', async () => {

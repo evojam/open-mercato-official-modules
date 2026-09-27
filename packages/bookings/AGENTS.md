@@ -170,6 +170,10 @@ with the status change in the payload; only cancel has its own name.
 GET  PUT  /api/bookings/settings                 bookings.manage_settings; PUT saves any subset of sections
 GET  POST PUT DELETE  /api/bookings/targets      read bookings.view, write bookings.manage_bookings
 GET  POST PUT DELETE  /api/bookings/subject-categories   read bookings.view, write bookings.manage_settings
+GET  POST PUT         /api/bookings/subjects     read bookings.view, write bookings.manage_bookings;
+                                                  POST mode existing | new; subjects are deactivated, never deleted
+GET                   /api/bookings/subjects/candidates   provider records not attached yet (manage_bookings)
+GET                   /api/bookings/subjects/providers    registered providers (bookings.view)
 ```
 
 Operations from spec §12:

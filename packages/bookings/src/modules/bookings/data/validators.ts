@@ -13,6 +13,8 @@ export type {
   BookingTargetFormInput,
   BookingTargetUpdateInput,
 } from './validators/targets/targets.validators'
+export { bookingSubjectAddSchema, bookingSubjectUpdateSchema } from './validators/subjects/subjects.validators'
+export type { BookingSubjectAddInput, BookingSubjectUpdateInput } from './validators/subjects/subjects.validators'
 export { bookingCategoryCreateSchema, bookingCategoryUpdateSchema } from './validators/subjects/categories.validators'
 export type {
   BookingCategoryCreateInput,

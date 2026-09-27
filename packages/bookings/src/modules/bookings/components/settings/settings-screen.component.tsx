@@ -13,7 +13,7 @@ import { WorkingCalendarSection } from './working-calendar-section.component'
 
 export function BookingsSettingsScreen() {
   const t = useT()
-  const { view, draft, errors, savingSection, update, save } = useBookingsSettings()
+  const { view, draft, categories, errors, savingSection, update, save } = useBookingsSettings()
   const locale = useLocale()
   const zones = React.useMemo(() => supportedTimeZones(), [])
   const formatDate = React.useMemo(() => {
@@ -118,6 +118,9 @@ export function BookingsSettingsScreen() {
 
       <ConflictPolicySection
         value={draft.conflictPolicy}
+        exceptions={draft.conflictPolicyExceptions}
+        categories={categories}
+        error={errors.conflictPolicyExceptions ? translateError(errors.conflictPolicyExceptions) : undefined}
         saving={savingSection === 'policy'}
         disabled={locked}
         labels={{
@@ -136,9 +139,21 @@ export function BookingsSettingsScreen() {
               description: t('bookings.settings.policy.reject.description', 'The save that would create an overlap fails.'),
             },
           },
+          exceptions: t('bookings.settings.policy.exceptions', 'Exceptions for subject categories'),
+          exceptionsHint: t(
+            'bookings.settings.policy.exceptionsHint',
+            'A category exception wins over the default. With subjects from several categories the stricter mode applies.'
+          ),
+          exceptionsEmpty: t('bookings.settings.policy.exceptionsEmpty', 'No exceptions — every category follows the default.'),
+          noCategories: t('bookings.settings.policy.noCategories', 'Create subject categories first to set exceptions for them.'),
+          pickCategory: t('bookings.settings.policy.pickCategory', 'Choose a category'),
+          addException: t('bookings.settings.policy.addException', 'Add exception'),
+          removeException: t('bookings.settings.policy.removeException', 'Remove exception'),
+          unknownCategory: t('bookings.settings.policy.unknownCategory', 'Deleted category'),
           save: saveLabel,
         }}
         onChange={(conflictPolicy) => update({ conflictPolicy })}
+        onChangeExceptions={(conflictPolicyExceptions) => update({ conflictPolicyExceptions })}
         onSave={() => void save('policy')}
       />
     </div>

@@ -180,6 +180,26 @@ still be changed while it has bookings, and because its bookings are read in tha
 land on another day — the edit form says so. Refusing that change while open bookings exist
 belongs with the command that places bookings.
 
+### D16 — Built-in providers report unavailability as unknown until planner can answer
+
+*spec §5, §6*
+
+The provider contract carries all four questions of §6: create, name and card, list, and
+unavailability over a range. The first three work today through the query engine and the owning
+module's commands (`resources.resources.create`, `staff.team-members.create`). The fourth needs
+`getUnavailabilityWindows` in planner, which is the separate core contribution of §5 and has not
+landed; reading planner's rules here instead is exactly what `AGENTS.md` rule 4 forbids. Until it
+lands, both built-in providers answer `null` — unknown — and the timeline treats their rows the
+way §6 treats a subject whose provider module is disabled: "unavailability unknown", never free.
+
+Two details §6 leaves to the implementation. A new record is created in the provider's registry
+under the provider's own permission (`resources.manage_resources`, `staff.manage_team`), checked
+before the provider command runs, so the module never becomes a side door into another registry.
+When the provider write succeeds and attaching it here fails, the error carries the provider and
+the record id with code `provider_record_orphaned`, and the screen offers to attach that record
+instead of creating a second one. Undoing an add removes only the subject row; the provider's
+record stays, because other modules may already use it.
+
 ## Conventions
 
 ### D7 — Entity classes live in one file, as in core (reverted from one file per entity)

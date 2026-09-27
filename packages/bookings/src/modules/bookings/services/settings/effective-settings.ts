@@ -1,8 +1,8 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
-import type { WorkingCalendar } from '../../../../lib/pure-engine'
+import type { ConflictPolicyException, WorkingCalendar } from '../../../../lib/pure-engine'
 import type { IsoDate, Weekday } from '../../../../lib/time/types'
-import { BookingsHoliday, BookingsSettings } from '../../data/entities'
+import { BookingConflictPolicyException, BookingsHoliday, BookingsSettings } from '../../data/entities'
 import type { BookingConflictPolicy } from '../../data/entities'
 import { bookingsErrors } from '../../lib/errors'
 
@@ -15,6 +15,7 @@ export type EffectiveBookingsSettings = {
   calendar: WorkingCalendar
   warningThresholdWorkingDays: number
   conflictPolicy: BookingConflictPolicy
+  conflictPolicyExceptions: ConflictPolicyException[]
   timeZone: string | null
 }
 
@@ -30,6 +31,7 @@ export type BookingsSettingsView = {
   holidays: BookingsHolidayView[]
   warningThresholdWorkingDays: number
   conflictPolicy: BookingConflictPolicy
+  conflictPolicyExceptions: ConflictPolicyException[]
   updatedAt: string | null
 }
 
@@ -81,9 +83,30 @@ export async function loadBookingsHolidays(em: EntityManager, scope: BookingsSco
   )
 }
 
+export async function loadConflictPolicyExceptions(
+  em: EntityManager,
+  scope: BookingsScope
+): Promise<BookingConflictPolicyException[]> {
+  return findWithDecryption(
+    em,
+    BookingConflictPolicyException,
+    { tenantId: scope.tenantId, organizationId: scope.organizationId, deletedAt: null },
+    undefined,
+    scope
+  )
+}
+
 export async function readBookingsSettingsView(em: EntityManager, scope: BookingsScope): Promise<BookingsSettingsView> {
-  const [settings, holidays] = await Promise.all([loadBookingsSettings(em, scope), loadBookingsHolidays(em, scope)])
+  const [settings, holidays, exceptions] = await Promise.all([
+    loadBookingsSettings(em, scope),
+    loadBookingsHolidays(em, scope),
+    loadConflictPolicyExceptions(em, scope),
+  ])
   const holidayViews = holidays.map((holiday) => ({ date: holiday.holidayOn, label: holiday.label ?? null }))
+  const conflictPolicyExceptions = exceptions.map((exception) => ({
+    categoryId: exception.category.id,
+    mode: exception.mode,
+  }))
 
   if (!settings) {
     return {
@@ -93,6 +116,7 @@ export async function readBookingsSettingsView(em: EntityManager, scope: Booking
       holidays: holidayViews,
       warningThresholdWorkingDays: BOOKINGS_SETTINGS_DEFAULTS.warningThresholdWorkingDays,
       conflictPolicy: BOOKINGS_SETTINGS_DEFAULTS.conflictPolicy,
+      conflictPolicyExceptions,
       updatedAt: null,
     }
   }
@@ -103,6 +127,7 @@ export async function readBookingsSettingsView(em: EntityManager, scope: Booking
     holidays: holidayViews,
     warningThresholdWorkingDays: settings.warningThresholdWorkingDays,
     conflictPolicy: settings.conflictPolicy,
+    conflictPolicyExceptions,
     updatedAt: settings.updatedAt ? settings.updatedAt.toISOString() : null,
   }
 }
@@ -116,6 +141,7 @@ export async function resolveEffectiveBookingsSettings(
     calendar: { freeWeekdays: view.freeWeekdays, holidays: view.holidays.map((holiday) => holiday.date) },
     warningThresholdWorkingDays: view.warningThresholdWorkingDays,
     conflictPolicy: view.conflictPolicy,
+    conflictPolicyExceptions: view.conflictPolicyExceptions,
     timeZone: view.timeZone,
   }
 }

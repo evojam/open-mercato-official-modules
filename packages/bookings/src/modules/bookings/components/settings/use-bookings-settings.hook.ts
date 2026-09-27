@@ -5,7 +5,7 @@ import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/u
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
-import type { BookingConflictPolicy } from '../../../../lib/pure-engine/conflict-policy.rule'
+import type { BookingConflictPolicy, ConflictPolicyException } from '../../../../lib/pure-engine/conflict-policy.rule'
 import type { Weekday } from '../../../../lib/time/types'
 import type { BookingsSettingsUpdateInput } from '../../data/validators'
 import { BOOKINGS_API_PATHS } from '../../lib/api-paths'
@@ -19,6 +19,12 @@ export type SettingsDraft = {
   holidays: BookingsHolidayView[]
   warningThresholdWorkingDays: string
   conflictPolicy: BookingConflictPolicy
+  conflictPolicyExceptions: ConflictPolicyException[]
+}
+
+export type SettingsCategory = {
+  id: string
+  name: string
 }
 
 export type SettingsErrors = Partial<Record<keyof SettingsDraft, string>>
@@ -36,6 +42,7 @@ function draftOf(view: BookingsSettingsView): SettingsDraft {
     holidays: view.holidays,
     warningThresholdWorkingDays: String(view.warningThresholdWorkingDays),
     conflictPolicy: view.conflictPolicy,
+    conflictPolicyExceptions: view.conflictPolicyExceptions,
   }
 }
 
@@ -45,7 +52,7 @@ const SECTION_FIELDS: Record<SettingsSection, ReadonlyArray<keyof SettingsDraft>
   timeZone: ['timeZone'],
   calendar: ['freeWeekdays', 'holidays'],
   threshold: ['warningThresholdWorkingDays'],
-  policy: ['conflictPolicy'],
+  policy: ['conflictPolicy', 'conflictPolicyExceptions'],
 }
 
 function payloadOf(section: SettingsSection, draft: SettingsDraft): SettingsPayload {
@@ -59,7 +66,7 @@ function payloadOf(section: SettingsSection, draft: SettingsDraft): SettingsPayl
       return { warningThresholdWorkingDays: typed === '' ? null : Number(typed) }
     }
     case 'policy':
-      return { conflictPolicy: draft.conflictPolicy }
+      return { conflictPolicy: draft.conflictPolicy, conflictPolicyExceptions: draft.conflictPolicyExceptions }
   }
 }
 
@@ -87,6 +94,7 @@ export function useBookingsSettings() {
   const [errors, setErrors] = React.useState<SettingsErrors>({})
   const [loading, setLoading] = React.useState(true)
   const [savingSection, setSavingSection] = React.useState<SettingsSection | null>(null)
+  const [categories, setCategories] = React.useState<SettingsCategory[]>([])
 
   const apply = React.useCallback((next: BookingsSettingsView) => {
     setView(next)
@@ -97,9 +105,15 @@ export function useBookingsSettings() {
   const reload = React.useCallback(async () => {
     setLoading(true)
     try {
-      const call = await apiCall<BookingsSettingsView>(BOOKINGS_API_PATHS.settings)
+      const [call, categoriesCall] = await Promise.all([
+        apiCall<BookingsSettingsView>(BOOKINGS_API_PATHS.settings),
+        apiCall<{ items: SettingsCategory[] }>(BOOKINGS_API_PATHS.subjectCategories),
+      ])
       if (call.ok && call.result) apply(call.result)
       else flash(t('bookings.settings.messages.loadFailed', 'Failed to load booking settings.'), 'error')
+      if (categoriesCall.ok) {
+        setCategories((categoriesCall.result?.items ?? []).map(({ id, name }) => ({ id, name })))
+      }
     } finally {
       setLoading(false)
     }
@@ -142,5 +156,5 @@ export function useBookingsSettings() {
     [draft, t]
   )
 
-  return { view, draft, errors, loading, savingSection, update, save, reload }
+  return { view, draft, categories, errors, loading, savingSection, update, save, reload }
 }

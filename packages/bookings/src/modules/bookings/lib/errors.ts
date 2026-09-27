@@ -15,6 +15,34 @@ export const bookingsErrors = {
     new CrudHttpError(409, { error: 'bookings.settings.errors.settingsRequired', code: 'settings_required' }),
   timeZoneRequired: () =>
     new CrudHttpError(400, { error: 'bookings.settings.errors.timeZoneRequired', code: 'time_zone_required' }),
+  unknownCategories: (categoryIds: string[]) =>
+    new CrudHttpError(400, {
+      error: 'bookings.settings.errors.exceptionCategory',
+      code: 'unknown_category',
+      details: { categoryIds },
+    }),
+  unknownProvider: (providerKey: string) =>
+    new CrudHttpError(400, { error: 'bookings.subjects.errors.unknownProvider', code: 'unknown_provider', details: { providerKey } }),
+  providerForbidden: (feature: string) =>
+    new CrudHttpError(403, { error: 'bookings.subjects.errors.providerForbidden', code: 'provider_forbidden', details: { feature } }),
+  providerRecordNotFound: (providerKey: string, providerRecordId: string) =>
+    new CrudHttpError(404, {
+      error: 'bookings.subjects.errors.recordNotFound',
+      code: 'provider_record_not_found',
+      details: { providerKey, providerRecordId },
+    }),
+  subjectAlreadyAdded: (providerKey: string, providerRecordId: string) =>
+    new CrudHttpError(409, {
+      error: 'bookings.subjects.errors.alreadyAdded',
+      code: 'subject_already_added',
+      details: { providerKey, providerRecordId },
+    }),
+  subjectNotAttached: (providerKey: string, providerRecordId: string) =>
+    new CrudHttpError(409, {
+      error: 'bookings.subjects.errors.notAttached',
+      code: 'provider_record_orphaned',
+      details: { providerKey, providerRecordId },
+    }),
   settingsConflict: () => new CrudHttpError(409, { error: 'bookings.settings.errors.conflict', code: 'settings_conflict' }),
   targetInUse: (openBookings: number) =>
     new CrudHttpError(409, { error: 'bookings.targets.errors.inUse', code: 'target_in_use', details: { openBookings } }),

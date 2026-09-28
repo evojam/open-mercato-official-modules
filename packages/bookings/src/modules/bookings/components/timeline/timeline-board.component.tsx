@@ -10,11 +10,12 @@ import { Button } from '@open-mercato/ui/primitives/button'
 import { EmptyState } from '@open-mercato/ui/primitives/empty-state'
 import { Timeline } from '../../../../lib/timeline/ui/timeline.component'
 import type { TimelineRow } from '../../../../lib/timeline/types'
-import { CreateBookingDialog } from '../bookings/create-booking-dialog.component'
+import { BookingDialog } from '../bookings/booking-dialog.component'
+import type { BookingDialogMode } from '../bookings/booking-dialog.component'
 import { categoryIcon } from '../subjects/category-icons'
 import { TimelineHeader } from './timeline-header.component'
 import { TimelineLegend } from './timeline-legend.component'
-import { presentTimeline } from './timeline.presenter'
+import { parseBarId, presentTimeline } from './timeline.presenter'
 import { useTimeline } from './use-timeline.hook'
 
 const SETTINGS_HREF = '/backend/config/bookings'
@@ -29,7 +30,7 @@ export function TimelineBoard() {
   const t = useT()
   const locale = useLocale()
   const timeline = useTimeline()
-  const [creating, setCreating] = React.useState(false)
+  const [dialog, setDialog] = React.useState<BookingDialogMode | null>(null)
   const [drawFailed, setDrawFailed] = React.useState(false)
   const [drawAttempt, setDrawAttempt] = React.useState(0)
   const { view, error, loading, filters } = timeline
@@ -57,6 +58,7 @@ export function TimelineBoard() {
 
   const filtered = filters.categoryId !== null || filters.conflictsOnly || filters.hideUnavailable
   const rowCount = timelineView?.rows.length ?? 0
+  const selectedBooking = timeline.selectedId ? parseBarId(timeline.selectedId)?.bookingId ?? null : null
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -71,6 +73,7 @@ export function TimelineBoard() {
           conflictsOnly: t('bookings.timeline.filters.conflictsOnly', 'Only conflicts'),
           hideUnavailable: t('bookings.timeline.filters.hideUnavailable', 'Hide unavailable'),
           newBooking: t('bookings.timeline.actions.newBooking', 'New booking'),
+          editBooking: t('bookings.timeline.actions.editBooking', 'Edit booking'),
         }}
         range={view?.range ?? null}
         isDefaultRange={timeline.isDefaultRange}
@@ -79,14 +82,23 @@ export function TimelineBoard() {
         filters={filters}
         onFiltersChange={timeline.updateFilters}
         canCreate={view?.canCreate ?? false}
-        onCreate={() => setCreating(true)}
+        onCreate={() => setDialog({ kind: 'create' })}
+        canEdit={Boolean(view?.canCreate && selectedBooking)}
+        onEdit={() => {
+          if (selectedBooking) setDialog({ kind: 'edit', bookingId: selectedBooking })
+        }}
       />
       {view ? (
-        <CreateBookingDialog
-          open={creating}
+        <BookingDialog
+          open={dialog !== null}
+          mode={dialog ?? { kind: 'create' }}
           today={view.today}
-          onOpenChange={setCreating}
-          onCreated={() => void timeline.reload()}
+          calendar={view.calendar}
+          canWriteUnavailability={view.canWriteUnavailability}
+          onOpenChange={(open) => {
+            if (!open) setDialog(null)
+          }}
+          onSaved={() => void timeline.reload()}
         />
       ) : null}
       <TimelineLegend

@@ -64,7 +64,12 @@ export async function GET(req: Request) {
     const em = (container.resolve('em') as EntityManager).fork()
     const queryEngine = container.resolve('queryEngine') as QueryEngine
     const rbac = container.resolve('rbacService') as RbacService
-    const canCreate = auth.sub ? await rbac.userHasAllFeatures(auth.sub, ['bookings.manage_bookings'], scope) : false
+    const [canCreate, canWriteUnavailability] = auth.sub
+      ? await Promise.all([
+          rbac.userHasAllFeatures(auth.sub, ['bookings.manage_bookings'], scope),
+          rbac.userHasAllFeatures(auth.sub, ['planner.manage_availability'], scope),
+        ])
+      : [false, false]
     const view = await readTimeline(
       { em, queryEngine },
       scope,
@@ -76,7 +81,7 @@ export async function GET(req: Request) {
       },
       new Date()
     )
-    return NextResponse.json({ ...view, canCreate } satisfies TimelineResponseDto)
+    return NextResponse.json({ ...view, canCreate, canWriteUnavailability } satisfies TimelineResponseDto)
   } catch (err) {
     if (isCrudHttpError(err)) return NextResponse.json(err.body, { status: err.status })
     console.error('bookings.timeline failed', err)
@@ -138,6 +143,7 @@ const timelineSchema = z.object({
     dayRangeSchema.extend({ windowId: z.string(), subjectId: z.string(), reason: z.string().nullable() })
   ),
   canCreate: z.boolean(),
+  canWriteUnavailability: z.boolean(),
 })
 
 export const openApi: OpenApiRouteDoc = {

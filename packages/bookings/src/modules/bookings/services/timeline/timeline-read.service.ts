@@ -65,6 +65,7 @@ export type TimelineReadDto = {
 
 export type TimelineResponseDto = TimelineReadDto & {
   canCreate: boolean
+  canWriteUnavailability: boolean
 }
 
 type TimelineReadDeps = {

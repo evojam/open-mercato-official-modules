@@ -15,6 +15,12 @@ export function barId(bar: Pick<TimelineBarDto, 'bookingId' | 'subjectId'>): str
   return `${bar.bookingId}:${bar.subjectId}`
 }
 
+export function parseBarId(id: string): { bookingId: string; subjectId: string } | null {
+  const separator = id.indexOf(':')
+  if (separator <= 0 || separator === id.length - 1) return null
+  return { bookingId: id.slice(0, separator), subjectId: id.slice(separator + 1) }
+}
+
 export function daysLabel(range: DayRange, formatDate: TimelinePresenterDeps['formatDate']): string {
   const last = lastDayOf(range)
   return last === range.from ? formatDate(range.from) : `${formatDate(range.from)} – ${formatDate(last)}`

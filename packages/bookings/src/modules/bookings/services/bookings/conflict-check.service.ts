@@ -1,6 +1,6 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { detectConflicts } from '../../../../lib/pure-engine'
-import type { Conflict, Placement } from '../../../../lib/pure-engine'
+import type { BookingStatus, Conflict, Placement } from '../../../../lib/pure-engine'
 import { bookingDays, candidateWindow } from '../../../../lib/time/day-ranges'
 import type { DayRange } from '../../../../lib/time/types'
 import { BookingParticipant, OPEN_BOOKING_STATUSES } from '../../data/entities'
@@ -8,9 +8,10 @@ import type { BookingsScope } from '../settings/effective-settings'
 
 export type ConflictCandidate = {
   bookingId: string
-  targetName: string
+  targetName?: string
   subjectIds: readonly string[]
   days: DayRange
+  status: BookingStatus
 }
 
 export async function findConflicts(
@@ -41,7 +42,7 @@ export async function findConflicts(
       ...candidate.days,
       bookingId: candidate.bookingId,
       subjectId,
-      status: 'planned' as const,
+      status: candidate.status,
       targetName: candidate.targetName,
     })),
     ...others.flatMap((participant) => {

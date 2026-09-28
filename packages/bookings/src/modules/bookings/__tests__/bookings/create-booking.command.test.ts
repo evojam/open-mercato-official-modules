@@ -14,7 +14,10 @@ jest.mock('@open-mercato/shared/lib/i18n/server', () => ({
 }))
 jest.mock('../../events', () => ({ emitBookingsEvent: jest.fn(async () => undefined) }))
 jest.mock('../../services/bookings/conflict-check.service', () => ({ findConflicts: jest.fn(async () => []) }))
-jest.mock('../../services/bookings/subject-lock', () => ({ lockSubjects: jest.fn(async () => undefined) }))
+jest.mock('../../services/bookings/subject-lock', () => ({
+  lockSubjects: jest.fn(async () => undefined),
+  lockTarget: jest.fn(async () => undefined),
+}))
 jest.mock('../../services/settings/effective-settings', () => ({ resolveEffectiveBookingsSettings: jest.fn() }))
 
 const TENANT = '6f1c2b0e-1c7a-4a52-9d3e-5b8f0d1a2c3d'

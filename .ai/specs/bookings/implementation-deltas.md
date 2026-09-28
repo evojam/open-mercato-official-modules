@@ -374,3 +374,44 @@ command transaction therefore locks through `services/bookings/subject-lock.ts`:
 `pg_advisory_xact_lock(hashtext('bookings.subject:<id>'))` for every participant, sorted by id,
 after asserting the entity manager is inside a transaction. When the platform offers a helper,
 the file becomes a call to it and this delta goes.
+
+The same file locks the target (`bookings.target:<id>`), always before the subjects, so the
+order is fixed everywhere and two writes can never deadlock. Every booking write takes the
+target lock, placed or not; target delete and a target time-zone change take it too, then count
+open bookings. This closes the race noted in the targets review: a booking created between the
+"any open bookings?" count and the soft delete used to land under a deleted target. Deleting a
+scoped record therefore runs in a transaction (`withAtomicFlush(..., { transaction: true })`).
+
+### D19 — Booking operations are POST action routes, one per verb
+
+*spec §12, AGENTS › API routes*
+
+The spec names place, move, resize and change-status as undoable commands and says nothing
+about their URLs. `makeCrudRoute` wires one command per HTTP verb, so the four operations do
+not fit PUT. They live under `api/bookings/actions/<verb>/route.ts`, the pattern core uses for
+`audit_logs/api/audit-logs/actions/undo`. Each file is a call to
+`lib/command-action-route.ts`, which does what a hand-written planner route does
+(`planner/api/availability-date-specific.ts`): auth, organization scope, scoped payload,
+validation with field details, `commandBus.execute`, the `x-om-operation` header for undo.
+Core has no shared helper for this; when it gets one, ours becomes a call to it.
+
+PUT on `/api/bookings/bookings` stays the "edit single fields" operation: target, participants,
+expected start, note. Changing the target or the participants of a placed booking is an
+occupancy change and runs the same lock and conflict check as a move. Dates and length never
+go through PUT.
+
+### D20 — Closed bookings are read-only; the form saves as several commands
+
+*spec §7.1, §12, §13, architecture › Errors*
+
+`architecture.md` names `422 booking_closed` only for placing a cancelled booking; §13 expects
+place, move and resize to refuse "a closed reservation". The module refuses every write except
+change-status on any closed booking (`completed`, `no_show`, `cancelled`): dates, length,
+target, participants and note of a finished booking do not change; reopen it first. Reopening
+runs the conflict check and can fail under reject (§13).
+
+The edit form sends only what changed, as separate commands in a fixed order: update (target,
+participants, expected start, note) → place or move → resize. Status changes and cancel go out
+on their own, at once. Each command is its own undo entry, as the spec's event list implies
+(`.moved`, `.resized`, `.updated` are distinct). A partial failure leaves the earlier steps
+applied and reported; the form says which step stopped.

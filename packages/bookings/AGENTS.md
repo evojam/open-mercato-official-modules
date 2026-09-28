@@ -174,9 +174,20 @@ GET  POST PUT         /api/bookings/subjects     read bookings.view, write booki
                                                   POST mode existing | new; subjects are deactivated, never deleted
 GET                   /api/bookings/subjects/candidates   provider records not attached yet (manage_bookings)
 GET                   /api/bookings/subjects/providers    registered providers (bookings.view)
-GET  POST             /api/bookings/bookings     read bookings.view, write bookings.manage_bookings; POST takes
-                                                  subjectIds (the screen sends one), optional startOn; returns
-                                                  conflicts and warnings; 409 booking_conflict under reject
+GET  POST PUT         /api/bookings/bookings     read bookings.view, write bookings.manage_bookings; POST takes
+                                                  subjectIds (the screen sends one), optional startOn; PUT edits
+                                                  targetId, subjectIds, expectedStartOn, note of an open booking;
+                                                  both return conflicts and warnings; 409 booking_conflict under reject
+POST                  /api/bookings/bookings/actions/place    {id, startOn} — gives an unplaced booking its window
+POST                  /api/bookings/bookings/actions/move     {id, startOn} — same working days, new start
+POST                  /api/bookings/bookings/actions/resize   {id, durationValue} — new working days, same start
+POST                  /api/bookings/bookings/actions/status   {id, status} — status matrix; cancel = status cancelled
+                                                  all four bookings.manage_bookings, undoable (x-om-operation), same
+                                                  response as POST; 422 booking_closed / booking_not_placed /
+                                                  booking_placed / invalid_transition
+GET                   /api/bookings/conflicts    bookings.view; subjectIds (comma list, ≤100), from + to (IsoDate,
+                                                  to exclusive, ≤366 days), excludeBookingId; the conflict read of
+                                                  spec §12 — what these subjects would clash with on these days
 GET                   /api/bookings/timeline     bookings.view; from + to (IsoDate, both or neither, at most
                                                   366 days; default two days back, a week in total), categoryId, conflictsOnly,
                                                   hideUnavailable

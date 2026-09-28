@@ -19,8 +19,21 @@ export {
   MAX_BOOKING_PARTICIPANTS,
   MAX_BOOKING_WORKING_DAYS,
   bookingCreateSchema,
+  bookingMoveSchema,
+  bookingPlaceSchema,
+  bookingResizeSchema,
+  bookingStatusSchema,
+  bookingUpdateSchema,
+  isoDateSchema,
 } from './validators/bookings/bookings.validators'
-export type { BookingCreateInput } from './validators/bookings/bookings.validators'
+export type {
+  BookingCreateInput,
+  BookingMoveInput,
+  BookingPlaceInput,
+  BookingResizeInput,
+  BookingStatusInput,
+  BookingUpdateInput,
+} from './validators/bookings/bookings.validators'
 export { bookingCategoryCreateSchema, bookingCategoryUpdateSchema } from './validators/subjects/categories.validators'
 export type {
   BookingCategoryCreateInput,

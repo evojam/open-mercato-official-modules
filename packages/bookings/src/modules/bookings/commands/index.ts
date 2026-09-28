@@ -1,3 +1,4 @@
+import './bookings/create-booking.command'
 import './settings/save-settings.command'
 import './subjects/categories.command'
 import './subjects/subjects.command'

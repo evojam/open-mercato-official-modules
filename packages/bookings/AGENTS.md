@@ -174,6 +174,12 @@ GET  POST PUT         /api/bookings/subjects     read bookings.view, write booki
                                                   POST mode existing | new; subjects are deactivated, never deleted
 GET                   /api/bookings/subjects/candidates   provider records not attached yet (manage_bookings)
 GET                   /api/bookings/subjects/providers    registered providers (bookings.view)
+GET  POST             /api/bookings/bookings     read bookings.view, write bookings.manage_bookings; POST takes
+                                                  subjectIds (the screen sends one), optional startOn; returns
+                                                  conflicts and warnings; 409 booking_conflict under reject
+GET                   /api/bookings/timeline     bookings.view; from + to (IsoDate, both or neither, at most
+                                                  366 days; default two days back, a week in total), categoryId, conflictsOnly,
+                                                  hideUnavailable
 ```
 
 Operations from spec §12:

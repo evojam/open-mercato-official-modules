@@ -1,4 +1,11 @@
-import { bookingDays, dayStartIn, todayIn, unavailabilityDays } from '../../lib/time/day-ranges'
+import {
+  bookingDays,
+  candidateWindow,
+  dayStartIn,
+  todayIn,
+  unavailabilityDays,
+  wallClockIn,
+} from '../../lib/time/day-ranges'
 
 function utc(value: string): Date {
   return new Date(value)
@@ -15,6 +22,24 @@ describe('todayIn', () => {
     expect(todayIn(now, 'Europe/Lisbon')).toBe('2026-06-01')
     expect(todayIn(now, 'Europe/Warsaw')).toBe('2026-06-02')
     expect(todayIn(now, 'Pacific/Auckland')).toBe('2026-06-02')
+  })
+})
+
+describe('wallClockIn', () => {
+  it('reads the clock on the wall of the given zone, across a clock change', () => {
+    expect(wallClockIn(utc('2026-06-01T22:30:00.000Z'), 'Europe/Warsaw')).toBe('2026-06-02T00:30:00')
+    expect(wallClockIn(utc('2026-12-01T22:30:00.000Z'), 'Europe/Warsaw')).toBe('2026-12-01T23:30:00')
+    expect(wallClockIn(utc('2026-06-01T22:30:00.000Z'), 'America/New_York')).toBe('2026-06-01T18:30:00')
+  })
+})
+
+describe('candidateWindow', () => {
+  it('covers the same dates in the earliest and the latest zone', () => {
+    const window = candidateWindow({ from: '2026-06-02', to: '2026-06-03' })
+
+    expect(window).toEqual({ from: utc('2026-06-01T10:00:00.000Z'), to: utc('2026-06-03T14:00:00.000Z') })
+    expect(window.from.getTime()).toBeLessThanOrEqual(dayStartIn('2026-06-02', 'Pacific/Kiritimati').getTime())
+    expect(window.to.getTime()).toBeGreaterThanOrEqual(dayStartIn('2026-06-03', 'Pacific/Pago_Pago').getTime())
   })
 })
 

@@ -6,12 +6,14 @@ import {
   supportedTimeZones,
   toZonedIsoDate,
   zonedDayStart,
+  zonedWallClock,
 } from './date-fns.adapter'
 import type { DayRange, IsoDate } from './types'
 
 export { isIsoDate, isValidTimeZone, normalizeTimeZone, supportedTimeZones }
 
 const DAY_MS = 24 * 60 * 60 * 1000
+const WIDEST_OFFSET_MS = 14 * 60 * 60 * 1000
 
 type Window = {
   from: Date
@@ -25,6 +27,10 @@ export type UnavailabilityZones = {
 
 export function todayIn(now: Date, zone: string): IsoDate {
   return toZonedIsoDate(now, zone)
+}
+
+export function wallClockIn(now: Date, zone: string): string {
+  return zonedWallClock(now, zone)
 }
 
 export function dayStartIn(date: IsoDate, zone: string): Date {
@@ -44,6 +50,13 @@ function daysTouched({ from, to }: Window, zone: string): DayRange {
 
 function isMidnightIn(instant: Date, zone: string): boolean {
   return zonedDayStart(toZonedIsoDate(instant, zone), zone).getTime() === instant.getTime()
+}
+
+export function candidateWindow(days: DayRange): Window {
+  return {
+    from: new Date(zonedDayStart(days.from, 'UTC').getTime() - WIDEST_OFFSET_MS),
+    to: new Date(zonedDayStart(days.to, 'UTC').getTime() + WIDEST_OFFSET_MS),
+  }
 }
 
 export function bookingDays(window: Window, targetZone: string): DayRange | null {

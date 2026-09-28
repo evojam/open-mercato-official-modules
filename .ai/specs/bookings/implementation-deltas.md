@@ -191,6 +191,8 @@ module's commands (`resources.resources.create`, `staff.team-members.create`). T
 landed; reading planner's rules here instead is exactly what `AGENTS.md` rule 4 forbids. Until it
 lands, both built-in providers answer `null` — unknown — and the timeline treats their rows the
 way §6 treats a subject whose provider module is disabled: "unavailability unknown", never free.
+For the same reason a booking write checks overlaps only and its response carries no
+unavailability conflicts yet; the write joins the providers' answer when planner can give one.
 
 Two details §6 leaves to the implementation. A new record is created in the provider's registry
 under the provider's own permission (`resources.manage_resources`, `staff.manage_team`), checked
@@ -344,3 +346,31 @@ nor ordering, so the lists are sorted by name in an `afterList` hook and return 
 go back to the platform once the ids exist. The question of how an official-modules package should ship `generated/`
 is raised with the maintainers; when it is answered, add the `indexer` entries and custom-field
 `entityId`s and delete this delta.
+
+### D17 — The timeline opens on a week, not on the scan horizon
+
+*spec §9, §11, §12*
+
+§9 names ninety days as "the range the timeline screen opens by default". The screen opens
+instead on two days back and a week in total, with a date range picker for any range up to
+366 days and a reset to the default: a dispatcher reads the coming days bar by bar, and ninety
+day columns of at least 80 pixels each do not fit a screen. The scan keeps its ninety-day
+horizon; the two numbers are now independent.
+
+The read is not paged by rows yet (§12): with no generated entity ids (D15) the lists return
+every row, and the timeline follows them. It returns every subject of the organization, or of
+one category, and asks the providers about all of them in one call each.
+
+The axis gets its days already resolved on the server in the organization's zone and draws them
+on a UTC grid, so the browser's zone never moves a column. A bar stands on its target's dates,
+the "now" line on the organization's wall clock at the time of the read.
+
+### D18 — The subject lock is this module's own helper
+
+*spec §7, AGENTS rule 3*
+
+Platform 0.6.3 has no shared advisory-lock helper; only `notifications` takes one, inline. The
+command transaction therefore locks through `services/bookings/subject-lock.ts`:
+`pg_advisory_xact_lock(hashtext('bookings.subject:<id>'))` for every participant, sorted by id,
+after asserting the entity manager is inside a transaction. When the platform offers a helper,
+the file becomes a call to it and this delta goes.

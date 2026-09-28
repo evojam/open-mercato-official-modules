@@ -83,6 +83,11 @@ function offsetMsAt(instantMs: number, zone: string): number {
   return Math.round(tzOffset(zone, new Date(instantMs))) * MINUTE_MS
 }
 
+export function zonedWallClock(instant: Date, zone: string): string {
+  assertTimeZone(zone)
+  return new Date(instant.getTime() + offsetMsAt(instant.getTime(), zone)).toISOString().slice(0, 19)
+}
+
 // Resolved by hand, not by TZDate: its constructor disambiguates a clock change through the host's zone.
 export function zonedWallTimeToInstant(date: IsoDate, wallTime: WallTime, zone: string): Date {
   const time = WALL_TIME.exec(wallTime)

@@ -7,6 +7,13 @@ const svg = (...children: React.ReactElement[]) =>
     ...children
   )
 
+export const timelineIcon = svg(
+  React.createElement('rect', { x: 3, y: 4, width: 18, height: 16, rx: 2 }),
+  React.createElement('path', { d: 'M7 9h6' }),
+  React.createElement('path', { d: 'M10 13h7' }),
+  React.createElement('path', { d: 'M5 17h5' })
+)
+
 export const targetsIcon = svg(
   React.createElement('path', { d: 'M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0' }),
   React.createElement('circle', { cx: 12, cy: 10, r: 3 })

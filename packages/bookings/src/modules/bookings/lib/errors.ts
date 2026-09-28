@@ -46,6 +46,10 @@ export const bookingsErrors = {
   settingsConflict: () => new CrudHttpError(409, { error: 'bookings.settings.errors.conflict', code: 'settings_conflict' }),
   targetInUse: (openBookings: number) =>
     new CrudHttpError(409, { error: 'bookings.targets.errors.inUse', code: 'target_in_use', details: { openBookings } }),
+  bookingConflict: (conflicts: unknown[]) =>
+    new CrudHttpError(409, { error: 'bookings.bookings.errors.conflict', code: 'booking_conflict', details: { conflicts } }),
+  subjectInactive: (subjectIds: string[]) =>
+    new CrudHttpError(400, { error: 'bookings.bookings.errors.subjectInactive', code: 'subject_inactive', details: { subjectIds } }),
   categoryInUse: (subjects: number, exceptions: number) =>
     new CrudHttpError(409, {
       error: 'bookings.categories.errors.inUse',

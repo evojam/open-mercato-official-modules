@@ -191,6 +191,8 @@ export class BookingTarget {
   expression: `"last_warned_working_days" is null or "last_warned_working_days" >= 0`,
 })
 export class Booking {
+  [OptionalProps]?: 'status' | 'durationUnit' | 'createdAt' | 'updatedAt'
+
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string
 
@@ -257,6 +259,8 @@ export class Booking {
     `create unique index "bookings_participants_booking_subject_uq" on "bookings_participants" ("booking_id", "subject_id") where "deleted_at" is null`,
 })
 export class BookingParticipant {
+  [OptionalProps]?: 'role' | 'createdAt' | 'updatedAt'
+
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string
 

@@ -9,13 +9,14 @@ import { Booking, BookingParticipant } from '../../data/entities'
 import { bookingCreateSchema } from '../../data/validators'
 import type { BookingCreateInput } from '../../data/validators'
 import { emitBookingsEvent } from '../../events'
+import type { BookingEventPayload } from '../../events'
 import { bookingsErrors } from '../../lib/errors'
 import { loadSnapshot, loadSubjects, loadTarget, policyFor, requireZonedSettings } from '../../services/bookings/booking-loader'
 import type { BookingSnapshot } from '../../services/bookings/booking-loader'
 import { placeBooking } from '../../services/bookings/placement.service'
 import { writeBooking } from '../../services/bookings/reschedule.service'
 import type { BookingsScope } from '../../services/settings/effective-settings'
-import { BOOKING_RESOURCE_KIND } from '../shared/booking-write.commands'
+import { BOOKING_RESOURCE_KIND, bookingEventOf } from '../shared/booking-write.commands'
 import type { BookingWriteResult } from '../shared/booking-write.commands'
 
 export type { BookingWarning } from '../shared/booking-write.commands'
@@ -64,6 +65,7 @@ const createBookingCommand: CommandHandler<BookingCreateInput, BookingCreateResu
       window: placement
         ? {
             bookingId,
+            targetId: target.id,
             targetName: target.name,
             subjectIds: input.subjectIds,
             days: placement.days,
@@ -93,7 +95,15 @@ const createBookingCommand: CommandHandler<BookingCreateInput, BookingCreateResu
 
     await emitBookingsEvent(
       'bookings.booking.created',
-      { id: bookingId, ...scope, subjectIds: input.subjectIds, conflicts: conflicts.length },
+      {
+        id: bookingId,
+        ...scope,
+        targetId: target.id,
+        subjectIds: [...input.subjectIds].sort(),
+        status: 'planned',
+        previousStatus: null,
+        conflicts: conflicts.length,
+      } satisfies BookingEventPayload,
       { persistent: true }
     )
     return {
@@ -133,7 +143,7 @@ const createBookingCommand: CommandHandler<BookingCreateInput, BookingCreateResu
       participant.updatedAt = now
     }
     await em.flush()
-    await emitBookingsEvent('bookings.booking.deleted', { id: booking.id, ...scope }, { persistent: true })
+    await emitBookingsEvent('bookings.booking.deleted', bookingEventOf(after, booking.status, 0), { persistent: true })
   },
 }
 

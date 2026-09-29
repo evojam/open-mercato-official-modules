@@ -16,8 +16,6 @@ export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['bookings.view'] },
 }
 
-const PREVIEW_BOOKING_ID = 'preview'
-
 const MAX_PREVIEW_SUBJECTS = 100
 
 const uuid = z.string().uuid({ message: 'bookings.conflicts.errors.subjectIds' })
@@ -53,7 +51,7 @@ export async function GET(req: Request) {
 
     const em = (container.resolve('em') as EntityManager).fork()
     const conflicts = await findConflicts(em, scope, {
-      bookingId: query.excludeBookingId ?? PREVIEW_BOOKING_ID,
+      bookingId: query.excludeBookingId,
       subjectIds: query.subjectIds,
       days: { from: query.from, to: query.to },
       status: 'planned',

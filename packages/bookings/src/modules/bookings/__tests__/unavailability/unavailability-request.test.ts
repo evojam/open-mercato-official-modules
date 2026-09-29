@@ -56,6 +56,7 @@ describe('plannerSubjectTypeOf', () => {
     expect(plannerSubjectTypeOf('staff')).toBe('member')
     expect(plannerSubjectTypeOf('resources')).toBe('resource')
     expect(plannerSubjectTypeOf('fleet')).toBeNull()
+    expect(plannerSubjectTypeOf('staff_teams')).toBeNull()
   })
 })
 

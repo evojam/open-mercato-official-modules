@@ -265,7 +265,8 @@ so a missed message means a briefly stale tab, never a permanently stale screen.
 on the timeline is local state until Save; incoming events refresh the background, never the
 draft, and a real collision surfaces at save time through the conflict check. Payloads are
 doorbells: an identifier and the fact, with `tenantId` and `organizationId` — without them
-the bridge drops the event.
+the bridge drops the event. For a booking the fact is its target, its subjects and the status
+change, so a server subscriber knows whose booking moved where without reading it again.
 
 `lib/live-updates.ts` is the one table of event → query keys, and its test fails when an
 event declared with `clientBroadcast: true` has no entry — coverage is read from one file,

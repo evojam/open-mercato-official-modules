@@ -3,7 +3,7 @@ import { emitBookingsEvent } from '../../events'
 import { findConflicts } from '../../services/bookings/conflict-check.service'
 import { lockSubjects } from '../../services/bookings/subject-lock'
 import { resolveEffectiveBookingsSettings } from '../../services/settings/effective-settings'
-import { BOOKING_ID, SCOPE, bookingOf, ctxFor, effectiveSettings, overlapWith, rejection, storeWith } from './booking-write.harness'
+import { BOOKING_ID, SCOPE, SUBJECT_ID, TARGET_ID, bookingOf, ctxFor, effectiveSettings, overlapWith, rejection, storeWith } from './booking-write.harness'
 
 jest.mock('@open-mercato/shared/lib/i18n/server', () => ({
   resolveTranslations: async () => ({ translate: (_key: string, fallback?: string) => fallback ?? _key }),
@@ -33,7 +33,19 @@ describe('bookings.bookings.change-status', () => {
     expect(store.booking?.status).toBe('active')
     expect(lockSubjects).not.toHaveBeenCalled()
     expect(findConflicts).not.toHaveBeenCalled()
-    expect(emitBookingsEvent).toHaveBeenCalledWith('bookings.booking.updated', expect.objectContaining({ id: BOOKING_ID, status: 'active' }), { persistent: true })
+    expect(emitBookingsEvent).toHaveBeenCalledWith(
+      'bookings.booking.updated',
+      {
+        id: BOOKING_ID,
+        ...SCOPE,
+        targetId: TARGET_ID,
+        subjectIds: [SUBJECT_ID],
+        status: 'active',
+        previousStatus: 'planned',
+        conflicts: 0,
+      },
+      { persistent: true }
+    )
   })
 
   it('closes a booking and frees its slot; cancel has its own event', async () => {

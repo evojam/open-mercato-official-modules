@@ -22,6 +22,7 @@ export type {
   OverlapConflict,
   Placement,
   SubjectId,
+  TargetId,
   UnavailabilityConflict,
   UnavailabilityWindow,
 } from './types'

@@ -415,3 +415,19 @@ participants, expected start, note) → place or move → resize. Status changes
 on their own, at once. Each command is its own undo entry, as the spec's event list implies
 (`.moved`, `.resized`, `.updated` are distinct). A partial failure leaves the earlier steps
 applied and reported; the form says which step stopped.
+
+### D21 — A third built-in provider: staff teams
+
+*spec §2, §6*
+
+§2 lists "a crew on a site" among the people a booking holds, and §6 ships two plugins. A crew
+is a `staff` team, not a team member, so the package registers a third built-in provider,
+`staff_teams`, over `staff:staff_team`: name from `name`, card at `/backend/staff/teams/<id>`,
+new records through `staff.teams.create` under `staff.manage_team`. Its subject kind is `team`,
+next to `person` and `resource`.
+
+Planner schedules members, resources and rule sets, not teams, so a team has no availability
+of its own to read or write. The provider answers unavailability `null` — unknown — for the
+same reason as D16, and the unavailability form offers no planner schedule for a team. Whether
+a team's unavailability should follow from its members is left open until planner can answer
+for members at all.

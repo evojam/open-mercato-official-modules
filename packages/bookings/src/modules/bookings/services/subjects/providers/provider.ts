@@ -2,7 +2,9 @@ import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
 import type { BookingsScope } from '../../settings/effective-settings'
 
-export type SubjectKind = 'person' | 'resource'
+export const SUBJECT_KINDS = ['person', 'team', 'resource'] as const
+
+export type SubjectKind = (typeof SUBJECT_KINDS)[number]
 
 export type ProviderRecord = {
   recordId: string

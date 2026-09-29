@@ -1,6 +1,6 @@
 import type { CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
 import type { QueryEngine } from '@open-mercato/shared/lib/query/types'
-import { resourcesSubjectProvider, staffSubjectProvider } from '../../services/subjects/providers/builtin.providers'
+import { resourcesSubjectProvider, staffSubjectProvider, staffTeamsSubjectProvider } from '../../services/subjects/providers/builtin.providers'
 import type { SubjectProvider } from '../../services/subjects/providers/provider'
 import { getSubjectProvider, listSubjectProviders, registerSubjectProvider } from '../../services/subjects/providers/registry'
 
@@ -62,6 +62,22 @@ describe('built-in registry providers', () => {
 
     expect(recordId).toBe('member-7')
     expect(execute).toHaveBeenCalledWith('staff.team-members.create', { input: { ...SCOPE, displayName: 'Marek' }, ctx })
+  })
+
+  it('reads staff teams by name and creates a team through the staff command', async () => {
+    const engine = fakeQueryEngine([{ id: 't1', name: 'Crew 3', is_active: true }])
+    const execute = jest.fn(async () => ({ result: { teamId: 'team-9' } }))
+    const ctx = { container: { resolve: () => ({ execute }) } } as unknown as CommandRuntimeContext
+
+    const records = await staffTeamsSubjectProvider.describe({ queryEngine: engine as unknown as QueryEngine, scope: SCOPE }, ['t1'])
+    const recordId = await staffTeamsSubjectProvider.createRecord(ctx, SCOPE, { name: 'Crew 4' })
+
+    expect(staffTeamsSubjectProvider.kind).toBe('team')
+    expect(records.get('t1')).toEqual({ recordId: 't1', name: 'Crew 3', isActive: true })
+    expect(engine.query).toHaveBeenCalledWith('staff:staff_team', expect.objectContaining({ filters: { id: { $in: ['t1'] } } }))
+    expect(recordId).toBe('team-9')
+    expect(execute).toHaveBeenCalledWith('staff.teams.create', { input: { ...SCOPE, name: 'Crew 4' }, ctx })
+    expect(staffTeamsSubjectProvider.cardHref('t1')).toBe('/backend/staff/teams/t1')
   })
 
   it('answers "unknown" for unavailability until planner exposes it', async () => {

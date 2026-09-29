@@ -19,6 +19,8 @@ import {
   type SubjectProviderOption,
 } from '../../../components/subjects/add-subject-dialog.component'
 import { categoryIcon } from '../../../components/subjects/category-icons'
+import { subjectKindLabel } from '../../../components/subjects/subject-kind'
+import type { SubjectKind } from '../../../services/subjects/providers/provider'
 import { BOOKINGS_API_PATHS } from '../../../lib/api-paths'
 
 const SUBJECTS_LIST_HREF = '/backend/bookings/subjects'
@@ -26,7 +28,7 @@ const SUBJECTS_LIST_HREF = '/backend/bookings/subjects'
 type SubjectRow = {
   id: string
   name: string
-  kind: 'person' | 'resource' | null
+  kind: SubjectKind | null
   providerAvailable: boolean
   cardHref: string | null
   category: { id: string; name: string; icon: string | null; color: string | null } | null
@@ -120,12 +122,7 @@ export default function SubjectsPage() {
       {
         id: 'kind',
         header: t('bookings.subjects.columns.kind', 'What it is'),
-        cell: ({ row }) =>
-          row.original.kind === 'person'
-            ? t('bookings.subjects.kind.person', 'Person')
-            : row.original.kind === 'resource'
-              ? t('bookings.subjects.kind.resource', 'Equipment, room or vehicle')
-              : t('bookings.subjects.kind.unavailable', 'Registry disabled'),
+        cell: ({ row }) => subjectKindLabel(row.original.kind, t),
       },
       {
         id: 'category',

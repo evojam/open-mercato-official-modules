@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@open-mercato/ui/primitives/tabs'
 import { BOOKINGS_API_PATHS } from '../../lib/api-paths'
 import type { ProviderRecord, SubjectKind } from '../../services/subjects/providers/provider'
+import { subjectKindLabel } from './subject-kind'
 
 export type SubjectProviderOption = {
   key: string
@@ -138,9 +139,6 @@ export function AddSubjectDialog({ open, providers, categories, onOpenChange, on
     return void submit({ mode: 'existing', providerKey, providerRecordId: picked })
   }
 
-  const kindLabel = (kind: SubjectKind) =>
-    kind === 'person' ? t('bookings.subjects.kind.person', 'Person') : t('bookings.subjects.kind.resource', 'Equipment, room or vehicle')
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -168,7 +166,7 @@ export function AddSubjectDialog({ open, providers, categories, onOpenChange, on
               className="grid grid-cols-2 gap-2"
             >
               {providers.map((option) => (
-                <RadioField key={option.key} value={option.key} label={kindLabel(option.kind)} sublabel={t(option.labelKey, option.key)} />
+                <RadioField key={option.key} value={option.key} label={subjectKindLabel(option.kind, t)} sublabel={t(option.labelKey, option.key)} />
               ))}
             </RadioGroup>
           </FormField>

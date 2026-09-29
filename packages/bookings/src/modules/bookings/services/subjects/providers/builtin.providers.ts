@@ -2,6 +2,7 @@ import { defineRegistryProvider } from './query-provider'
 
 export const RESOURCES_PROVIDER_KEY = 'resources'
 export const STAFF_PROVIDER_KEY = 'staff'
+export const STAFF_TEAMS_PROVIDER_KEY = 'staff_teams'
 
 export const resourcesSubjectProvider = defineRegistryProvider({
   key: RESOURCES_PROVIDER_KEY,
@@ -27,4 +28,17 @@ export const staffSubjectProvider = defineRegistryProvider({
   createInput: (name) => ({ displayName: name }),
   createdId: (result) => (result as { memberId?: string } | null)?.memberId ?? null,
   cardHref: (recordId) => `/backend/staff/team-members/${recordId}`,
+})
+
+export const staffTeamsSubjectProvider = defineRegistryProvider({
+  key: STAFF_TEAMS_PROVIDER_KEY,
+  kind: 'team',
+  labelKey: 'bookings.subjects.providers.staff_teams',
+  entityId: 'staff:staff_team',
+  nameField: 'name',
+  createCommand: 'staff.teams.create',
+  createFeature: 'staff.manage_team',
+  createInput: (name) => ({ name }),
+  createdId: (result) => (result as { teamId?: string } | null)?.teamId ?? null,
+  cardHref: (recordId) => `/backend/staff/teams/${recordId}`,
 })

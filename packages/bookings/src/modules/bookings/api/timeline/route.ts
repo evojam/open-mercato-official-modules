@@ -97,6 +97,7 @@ const conflictSchema = z.discriminatedUnion('kind', [
     subjectId: z.string(),
     bookingId: z.string(),
     withBookingId: z.string(),
+    withTargetId: z.string().optional(),
     withTargetName: z.string().optional(),
   }),
   dayRangeSchema.extend({

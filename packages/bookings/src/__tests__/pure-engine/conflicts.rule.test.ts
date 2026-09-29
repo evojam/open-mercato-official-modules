@@ -10,6 +10,7 @@ function placement(overrides: Partial<Placement> & Pick<Placement, 'bookingId' |
   return {
     subjectId: MAREK,
     status: 'planned',
+    targetId: 'target-kowalski',
     targetName: 'Jan Kowalski',
     ...overrides,
   }
@@ -27,7 +28,7 @@ describe('detectConflicts — overlapping bookings', () => {
   it('reports a conflict for both bookings when one subject is booked twice over the same days', () => {
     const placements = [
       placement({ bookingId: 'a', from: day('2026-09-23'), to: day('2026-09-25') }),
-      placement({ bookingId: 'b', from: day('2026-09-24'), to: day('2026-09-26'), targetName: 'Adam Nowak' }),
+      placement({ bookingId: 'b', from: day('2026-09-24'), to: day('2026-09-26'), targetId: 'target-nowak', targetName: 'Adam Nowak' }),
     ]
 
     const conflicts = detectConflicts({ placements })
@@ -35,8 +36,8 @@ describe('detectConflicts — overlapping bookings', () => {
     expect(conflicts).toHaveLength(2)
     expect(conflicts).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: 'overlap', bookingId: 'a', withBookingId: 'b', withTargetName: 'Adam Nowak' }),
-        expect.objectContaining({ kind: 'overlap', bookingId: 'b', withBookingId: 'a', withTargetName: 'Jan Kowalski' }),
+        expect.objectContaining({ kind: 'overlap', bookingId: 'a', withBookingId: 'b', withTargetId: 'target-nowak', withTargetName: 'Adam Nowak' }),
+        expect.objectContaining({ kind: 'overlap', bookingId: 'b', withBookingId: 'a', withTargetId: 'target-kowalski', withTargetName: 'Jan Kowalski' }),
       ])
     )
   })

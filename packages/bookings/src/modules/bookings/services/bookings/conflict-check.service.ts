@@ -7,12 +7,15 @@ import { BookingParticipant, OPEN_BOOKING_STATUSES } from '../../data/entities'
 import type { BookingsScope } from '../settings/effective-settings'
 
 export type ConflictCandidate = {
-  bookingId: string
+  bookingId?: string
+  targetId?: string
   targetName?: string
   subjectIds: readonly string[]
   days: DayRange
   status: BookingStatus
 }
+
+const PREVIEW_BOOKING_ID = 'preview'
 
 export async function findConflicts(
   em: EntityManager,
@@ -20,6 +23,7 @@ export async function findConflicts(
   candidate: ConflictCandidate
 ): Promise<Conflict[]> {
   const window = candidateWindow(candidate.days)
+  const candidateId = candidate.bookingId ?? PREVIEW_BOOKING_ID
   const others = await em.find(
     BookingParticipant,
     {
@@ -28,7 +32,7 @@ export async function findConflicts(
       subject: { $in: [...candidate.subjectIds] },
       booking: {
         deletedAt: null,
-        id: { $ne: candidate.bookingId },
+        ...(candidate.bookingId ? { id: { $ne: candidate.bookingId } } : {}),
         status: { $in: [...OPEN_BOOKING_STATUSES] },
         startAt: { $lt: window.to },
         endAt: { $gt: window.from },
@@ -40,9 +44,10 @@ export async function findConflicts(
   const placements: Placement[] = [
     ...candidate.subjectIds.map((subjectId) => ({
       ...candidate.days,
-      bookingId: candidate.bookingId,
+      bookingId: candidateId,
       subjectId,
       status: candidate.status,
+      targetId: candidate.targetId,
       targetName: candidate.targetName,
     })),
     ...others.flatMap((participant) => {
@@ -58,10 +63,11 @@ export async function findConflicts(
           bookingId: booking.id,
           subjectId: participant.subject.id,
           status: booking.status,
+          targetId: booking.target.id,
           targetName: booking.target.name,
         },
       ]
     }),
   ]
-  return detectConflicts({ placements }).filter((conflict) => conflict.bookingId === candidate.bookingId)
+  return detectConflicts({ placements }).filter((conflict) => conflict.bookingId === candidateId)
 }

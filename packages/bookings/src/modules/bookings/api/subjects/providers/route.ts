@@ -6,6 +6,7 @@ import { isCrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { bookingsErrors } from '../../../lib/errors'
+import { SUBJECT_KINDS } from '../../../services/subjects/providers/provider'
 import { listSubjectProviders } from '../../../services/subjects/providers/registry'
 
 export const metadata = {
@@ -60,7 +61,7 @@ export const openApi: OpenApiRouteDoc = {
             items: z.array(
               z.object({
                 key: z.string(),
-                kind: z.enum(['person', 'resource']),
+                kind: z.enum(SUBJECT_KINDS),
                 labelKey: z.string(),
                 canCreate: z.boolean(),
               })

@@ -12,7 +12,7 @@ import { bookingDays } from '../../../../lib/time/day-ranges'
 import type { DayRange, IsoDate } from '../../../../lib/time/types'
 import type { BookingSubject, BookingTarget } from '../../data/entities'
 import { emitBookingsEvent } from '../../events'
-import type { BookingsEventId } from '../../events'
+import type { BookingEventPayload, BookingsEventId } from '../../events'
 import { bookingsErrors } from '../../lib/errors'
 import { loadBookingForWrite, loadSnapshot, loadSubjects, loadTarget, policyFor } from '../../services/bookings/booking-loader'
 import type { BookingSnapshot, LoadedBooking } from '../../services/bookings/booking-loader'
@@ -69,6 +69,15 @@ function scopeOf(input: BookingsScope): BookingsScope {
   return { tenantId: input.tenantId, organizationId: input.organizationId }
 }
 
+export function bookingEventOf(
+  snapshot: BookingSnapshot,
+  previousStatus: BookingStatus | null,
+  conflicts: number
+): BookingEventPayload {
+  const { id, tenantId, organizationId, targetId, subjectIds, status } = snapshot
+  return { id, tenantId, organizationId, targetId, subjectIds, status, previousStatus, conflicts }
+}
+
 function comparable(snapshot: BookingSnapshot): Record<string, unknown> {
   return { ...snapshot, subjectIds: snapshot.subjectIds.join(',') }
 }
@@ -82,6 +91,7 @@ export function windowFor(
   const target = overrides.target ?? loaded.booking.target
   return {
     bookingId: loaded.booking.id,
+    targetId: target.id,
     targetName: target.name,
     subjectIds: subjects.map((subject) => subject.id),
     days,
@@ -107,14 +117,14 @@ async function restoreBooking(
   scope: BookingsScope,
   loaded: LoadedBooking,
   before: BookingSnapshot
-): Promise<void> {
+): Promise<Conflict[]> {
   const { booking } = loaded
   const target = before.targetId === booking.target.id ? booking.target : await loadTarget(em, scope, before.targetId)
   const subjects = await loadSubjects(em, scope, before.subjectIds)
   const startAt = before.startAt ? new Date(before.startAt) : null
   const endAt = before.endAt ? new Date(before.endAt) : null
   const days = startAt && endAt ? bookingDays({ from: startAt, to: endAt }, target.timeZone) : null
-  await writeBooking(em, scope, {
+  return writeBooking(em, scope, {
     targetId: target.id,
     window: days && isOpen(before.status) ? windowFor(loaded, days, { subjects, target, status: before.status }) : null,
     apply: () => {
@@ -156,13 +166,13 @@ export function registerBookingWriteCommand<TInput extends BookingWriteInput>(
       const scope = scopeOf(input)
       const em = entityManagerOf(ctx)
       const loaded = await loadBookingForWrite(em, scope, input.id)
+      const previousStatus = loaded.booking.status
       const plan = await definition.plan(em, scope, loaded, input)
       const conflicts = await writeBooking(em, scope, plan.write)
-      await emitBookingsEvent(
-        plan.event,
-        { id: input.id, ...scope, status: loaded.booking.status, conflicts: conflicts.length },
-        { persistent: true }
-      )
+      const after = await loadSnapshot(em, scope, input.id)
+      if (after) {
+        await emitBookingsEvent(plan.event, bookingEventOf(after, previousStatus, conflicts.length), { persistent: true })
+      }
       return { id: input.id, conflicts, warnings: plan.warnings ?? [] }
     },
     captureAfter: async (rawInput, result, ctx) => loadSnapshot(entityManagerOf(ctx), scopeOf(parse(rawInput)), result.id),
@@ -189,10 +199,11 @@ export function registerBookingWriteCommand<TInput extends BookingWriteInput>(
       const em = entityManagerOf(ctx)
       const scope = scopeOf(before)
       const loaded = await loadBookingForWrite(em, scope, before.id)
-      await restoreBooking(em, scope, loaded, before)
+      const previousStatus = loaded.booking.status
+      const conflicts = await restoreBooking(em, scope, loaded, before)
       await emitBookingsEvent(
         'bookings.booking.updated',
-        { id: before.id, ...scope, status: before.status, conflicts: 0 },
+        bookingEventOf(before, previousStatus, conflicts.length),
         { persistent: true }
       )
     },

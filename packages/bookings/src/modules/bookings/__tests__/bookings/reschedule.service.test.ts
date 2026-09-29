@@ -34,6 +34,7 @@ function fakeEm(inTransaction = true) {
 
 const window = (overrides: Partial<OccupiedWindow> = {}): OccupiedWindow => ({
   bookingId: BOOKING_ID,
+  targetId: TARGET_ID,
   targetName: 'Site A',
   subjectIds: [OTHER_SUBJECT_ID, SUBJECT_ID],
   days: { from: '2026-10-05', to: '2026-10-08' },
@@ -59,6 +60,7 @@ describe('writeBooking', () => {
     expect(calls).toEqual(['begin', `bookings.target:${TARGET_ID}`, `bookings.subject:${SUBJECT_ID}`, `bookings.subject:${OTHER_SUBJECT_ID}`, 'apply', 'flush', 'commit'])
     expect(findConflicts).toHaveBeenCalledWith(em, SCOPE, {
       bookingId: BOOKING_ID,
+      targetId: TARGET_ID,
       targetName: 'Site A',
       subjectIds: [OTHER_SUBJECT_ID, SUBJECT_ID],
       days: { from: '2026-10-05', to: '2026-10-08' },

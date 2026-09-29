@@ -59,6 +59,7 @@ function detectOverlaps(placements: readonly Placement[]): Conflict[] {
           bookingId: earlier.bookingId,
           ...range,
           withBookingId: later.bookingId,
+          withTargetId: later.targetId,
           withTargetName: later.targetName,
         })
         conflicts.push({
@@ -67,6 +68,7 @@ function detectOverlaps(placements: readonly Placement[]): Conflict[] {
           bookingId: later.bookingId,
           ...range,
           withBookingId: earlier.bookingId,
+          withTargetId: earlier.targetId,
           withTargetName: earlier.targetName,
         })
       }

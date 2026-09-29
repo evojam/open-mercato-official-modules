@@ -131,7 +131,15 @@ describe('bookings.bookings.create', () => {
     expect(result).toEqual({ id: booking.id, conflicts: [], warnings: [] })
     expect(emitBookingsEvent).toHaveBeenCalledWith(
       'bookings.booking.created',
-      expect.objectContaining({ id: booking.id, ...SCOPE }),
+      {
+        id: booking.id,
+        ...SCOPE,
+        targetId: TARGET_ID,
+        subjectIds: [SUBJECT_ID],
+        status: 'planned',
+        previousStatus: null,
+        conflicts: 0,
+      },
       { persistent: true }
     )
   })

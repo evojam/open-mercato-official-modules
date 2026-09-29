@@ -118,6 +118,8 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
   const editing = mode.kind === 'edit' ? mode.bookingId : null
   const composing = kind === 'unavailability'
   const readOnly = booking !== null && isClosed(booking.status)
+  const callbacks = React.useRef({ t, onOpenChange })
+  callbacks.current = { t, onOpenChange }
   const scope = React.useMemo(() => ({ organizationId, tenantId }), [organizationId, tenantId])
   const formatDate = React.useMemo(() => {
     const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' })
@@ -126,6 +128,7 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
 
   React.useEffect(() => {
     if (!open) return
+    let stale = false
     setKind('booking')
     setUnavailabilityDirty(false)
     setValues(emptyValues(today))
@@ -135,15 +138,17 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
     setErrors({})
     setRejected(null)
     setLoading(true)
-    const loadFailed = (key: string, fallback: string) => flash(t(key, fallback), 'error')
+    const loadFailed = (key: string, fallback: string) => flash(callbacks.current.t(key, fallback), 'error')
     const optionsOf = (items: Option[] | undefined) => (items ?? []).map(({ id, name }) => ({ id, name }))
-    void Promise.all([
-      apiCall<{ items: Option[] }>(`${BOOKINGS_API_PATHS.targets}?pageSize=100`),
-      apiCall<{ items: SubjectOption[] }>(`${BOOKINGS_API_PATHS.subjects}?pageSize=100&isActive=true`),
-      apiCall<{ items: Option[] }>(`${BOOKINGS_API_PATHS.subjectCategories}?pageSize=100`),
-      editing ? apiCall<{ items: BookingItem[] }>(`${BOOKINGS_API_PATHS.bookings}?id=${editing}`) : Promise.resolve(null),
-    ])
-      .then(([targetsCall, subjectsCall, categoriesCall, bookingCall]) => {
+    const load = async () => {
+      try {
+        const [targetsCall, subjectsCall, categoriesCall, bookingCall] = await Promise.all([
+          apiCall<{ items: Option[] }>(`${BOOKINGS_API_PATHS.targets}?pageSize=100`),
+          apiCall<{ items: SubjectOption[] }>(`${BOOKINGS_API_PATHS.subjects}?pageSize=100&isActive=true`),
+          apiCall<{ items: Option[] }>(`${BOOKINGS_API_PATHS.subjectCategories}?pageSize=100`),
+          editing ? apiCall<{ items: BookingItem[] }>(`${BOOKINGS_API_PATHS.bookings}?id=${editing}`) : Promise.resolve(null),
+        ])
+        if (stale) return
         setTargets(targetsCall.ok ? optionsOf(targetsCall.result?.items) : [])
         setSubjects(
           subjectsCall.ok
@@ -154,22 +159,28 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
         if (!targetsCall.ok || !subjectsCall.ok || !categoriesCall.ok) {
           loadFailed('bookings.bookings.errors.optionsFailed', 'Failed to load targets or subjects.')
         }
-        if (bookingCall) {
-          const item = bookingCall.ok ? bookingCall.result?.items?.[0] : undefined
-          if (!item) {
-            loadFailed('bookings.bookings.errors.loadFailed', 'Failed to load the booking.')
-            onOpenChange(false)
-            return
-          }
-          const loaded = originOf(item)
-          setBooking(item)
-          setOrigin(loaded)
-          setValues(loaded)
+        if (!bookingCall) return
+        const item = bookingCall.ok ? bookingCall.result?.items?.[0] : undefined
+        if (!item) {
+          loadFailed('bookings.bookings.errors.loadFailed', 'Failed to load the booking.')
+          callbacks.current.onOpenChange(false)
+          return
         }
-      })
-      .catch(() => loadFailed('bookings.bookings.errors.optionsFailed', 'Failed to load targets or subjects.'))
-      .finally(() => setLoading(false))
-  }, [open, editing, today, t, onOpenChange])
+        const loaded = originOf(item)
+        setBooking(item)
+        setOrigin(loaded)
+        setValues(loaded)
+      } catch {
+        if (!stale) loadFailed('bookings.bookings.errors.optionsFailed', 'Failed to load targets or subjects.')
+      } finally {
+        if (!stale) setLoading(false)
+      }
+    }
+    void load()
+    return () => {
+      stale = true
+    }
+  }, [open, editing, today])
 
   const set = (patch: Partial<BookingFormValues>) => setValues((current) => ({ ...current, ...patch }))
   const translate = (key: string | undefined) => (key ? t(key, key) : undefined)

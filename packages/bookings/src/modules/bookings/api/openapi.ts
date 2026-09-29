@@ -35,6 +35,7 @@ export const conflictSchema = z.object({
   from: z.string(),
   to: z.string(),
   withBookingId: z.string().optional(),
+  withTargetId: z.string().optional(),
   withTargetName: z.string().optional(),
   withWindowId: z.string().optional(),
   reasonLabel: z.string().optional(),

@@ -164,6 +164,11 @@ bookings.coverage_gap.detected
 Booking events carry `clientBroadcast: true`. Complete, reopen and no-show ride `.updated`
 with the status change in the payload; only cancel has its own name.
 
+Every `bookings.booking.*` event carries one payload, `BookingEventPayload` in `events.ts`
+(additive-only): `id`, `tenantId`, `organizationId`, `targetId`, `subjectIds`, `status`,
+`previousStatus` (`null` on create) and `conflicts` (the count the write found). Target and
+subjects describe the booking after the change, so a subscriber does not read it again.
+
 ### API routes (BC #7 — STABLE) — URLs are fixed here as the routes land
 
 ```

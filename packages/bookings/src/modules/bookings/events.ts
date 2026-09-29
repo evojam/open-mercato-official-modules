@@ -1,4 +1,5 @@
 import { createModuleEvents } from '@open-mercato/shared/modules/events'
+import type { BookingStatus } from '../../lib/pure-engine'
 
 const events = [
   { id: 'bookings.booking.created', label: 'Booking Created', entity: 'booking', category: 'crud', clientBroadcast: true },
@@ -20,5 +21,16 @@ export const eventsConfig = createModuleEvents({
 export const emitBookingsEvent = eventsConfig.emit
 
 export type BookingsEventId = (typeof events)[number]['id']
+
+export type BookingEventPayload = {
+  id: string
+  tenantId: string
+  organizationId: string
+  targetId: string
+  subjectIds: string[]
+  status: BookingStatus
+  previousStatus: BookingStatus | null
+  conflicts: number
+}
 
 export default eventsConfig

@@ -11,6 +11,7 @@ import { lockSubjects, lockTarget } from './subject-lock'
 
 export type OccupiedWindow = {
   bookingId: string
+  targetId: string
   targetName: string
   subjectIds: readonly string[]
   days: DayRange
@@ -28,6 +29,7 @@ async function guardWindow(em: EntityManager, scope: BookingsScope, window: Occu
   await lockSubjects(em, window.subjectIds)
   const conflicts = await findConflicts(em, scope, {
     bookingId: window.bookingId,
+    targetId: window.targetId,
     targetName: window.targetName,
     subjectIds: window.subjectIds,
     days: window.days,

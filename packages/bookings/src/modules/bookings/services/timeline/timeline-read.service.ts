@@ -119,6 +119,7 @@ function withConflicts(bars: TimelineBarDto[], windows: TimelineUnavailabilityDt
     bookingId: bar.bookingId,
     subjectId: bar.subjectId,
     status: bar.status,
+    targetId: bar.targetId,
     targetName: bar.targetName,
   }))
   const unavailability: UnavailabilityWindow[] = windows.map((window) => ({

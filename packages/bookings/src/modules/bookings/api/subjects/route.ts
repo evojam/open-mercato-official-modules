@@ -5,6 +5,7 @@ import { makeCrudRoute } from '@open-mercato/shared/lib/crud/factory'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import { BookingSubject, BookingSubjectCategory } from '../../data/entities'
 import { bookingSubjectAddSchema, bookingSubjectUpdateSchema } from '../../data/validators'
+import { SUBJECT_KINDS } from '../../services/subjects/providers/provider'
 import { getSubjectProvider } from '../../services/subjects/providers/registry'
 import { crudListQuerySchema, nameAndIdFilters, sortItemsByName } from '../crud-list'
 import { createBookingsCrudOpenApi, createPagedListResponseSchema, defaultOkResponseSchema } from '../openapi'
@@ -117,7 +118,7 @@ const subjectListItemSchema = z.object({
   providerKey: z.string(),
   providerRecordId: z.string(),
   providerAvailable: z.boolean(),
-  kind: z.enum(['person', 'resource']).nullable(),
+  kind: z.enum(SUBJECT_KINDS).nullable(),
   cardHref: z.string().nullable(),
   categoryId: z.string().uuid().nullable(),
   category: z.object({ id: z.string(), name: z.string(), icon: z.string().nullable(), color: z.string().nullable() }).nullable(),

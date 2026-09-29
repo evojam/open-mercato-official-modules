@@ -69,7 +69,7 @@ describe('assembleTimeline', () => {
       ['b2', '2026-10-06', '2026-10-09'],
     ])
     expect(view.bars.map((bar) => bar.conflicts.map((conflict) => conflict.kind))).toEqual([['overlap'], ['overlap']])
-    expect(view.bars[0].conflicts[0]).toMatchObject({ withBookingId: 'b2', withTargetName: 'Site A' })
+    expect(view.bars[0].conflicts[0]).toMatchObject({ withBookingId: 'b2', withTargetId: 'target-1', withTargetName: 'Site A' })
   })
 
   it('reports a clash with unavailability and never counts a closed booking', () => {

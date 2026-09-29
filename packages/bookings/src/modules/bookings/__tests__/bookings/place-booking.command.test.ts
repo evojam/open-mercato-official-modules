@@ -143,4 +143,31 @@ describe('bookings.bookings.place', () => {
     expect(findConflicts).not.toHaveBeenCalled()
     expect(emitBookingsEvent).toHaveBeenCalledWith('bookings.booking.updated', expect.objectContaining({ id: BOOKING_ID }), { persistent: true })
   })
+
+  it('reports the clashes an undo brings back instead of claiming none', async () => {
+    jest.mocked(findConflicts).mockResolvedValue([overlapWith()])
+    const store = storeWith({ booking: unplaced() })
+    const before = {
+      id: BOOKING_ID,
+      ...SCOPE,
+      targetId: TARGET_ID,
+      subjectIds: [SUBJECT_ID],
+      status: 'planned',
+      startAt: WARSAW_MIDNIGHT('2026-10-05').toISOString(),
+      endAt: WARSAW_MIDNIGHT('2026-10-08').toISOString(),
+      durationValue: '3',
+      durationUnit: 'working_days',
+      expectedStartOn: '2026-10-05',
+      lastWarnedWorkingDays: null,
+      note: null,
+    }
+
+    await placeBookingCommand.undo!({ input: {} as never, ctx: ctxFor(store), logEntry: logEntryOf({ undo: { before } }) })
+
+    expect(emitBookingsEvent).toHaveBeenCalledWith(
+      'bookings.booking.updated',
+      expect.objectContaining({ id: BOOKING_ID, targetId: TARGET_ID, subjectIds: [SUBJECT_ID], previousStatus: 'planned', conflicts: 1 }),
+      { persistent: true }
+    )
+  })
 })

@@ -5,10 +5,13 @@ export type SubjectId = string
 
 export type BookingId = string
 
+export type TargetId = string
+
 export type Placement = DayRange & {
   bookingId: BookingId
   subjectId: SubjectId
   status: BookingStatus
+  targetId?: TargetId
   targetName?: string
 }
 
@@ -23,6 +26,7 @@ export type OverlapConflict = DayRange & {
   subjectId: SubjectId
   bookingId: BookingId
   withBookingId: BookingId
+  withTargetId?: TargetId
   withTargetName?: string
 }
 

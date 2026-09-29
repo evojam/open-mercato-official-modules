@@ -3,6 +3,7 @@ import type { EntityClass } from '@mikro-orm/core'
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { registerCommand } from '@open-mercato/shared/lib/commands'
 import type { CommandHandler, CommandRuntimeContext } from '@open-mercato/shared/lib/commands'
+import { withAtomicFlush } from '@open-mercato/shared/lib/commands/flush'
 import { buildChanges } from '@open-mercato/shared/lib/commands/helpers'
 import { ensureOrganizationScope, ensureTenantScope } from '@open-mercato/shared/lib/commands/scope'
 import { extractUndoPayload } from '@open-mercato/shared/lib/commands/undo'
@@ -43,6 +44,7 @@ export type ScopedRecordDefinition<TEntity extends ScopedRecord, TCreate extends
   labels: { create: Label; update: Label; delete: Label }
   errors: { notFound: string; duplicate: { error: string; code: string } }
   valuesForCreate: (em: EntityManager, input: TCreate) => Promise<Partial<TEntity>>
+  beforeUpdate?: (em: EntityManager, record: TEntity, values: Partial<Record<keyof TEntity & string, unknown>>) => Promise<void>
   beforeDelete?: (em: EntityManager, record: TEntity) => Promise<void>
 }
 
@@ -99,6 +101,32 @@ export function registerScopedRecordCommands<TEntity extends ScopedRecord, TCrea
     return record
   }
 
+  const valuesOf = (source: Record<string, unknown>): Partial<Record<keyof TEntity & string, unknown>> => {
+    const values: Partial<Record<keyof TEntity & string, unknown>> = {}
+    for (const field of fields) if (source[field] !== undefined) values[field] = source[field]
+    return values
+  }
+
+  const assign = async (em: EntityManager, record: TEntity, values: Partial<Record<keyof TEntity & string, unknown>>) => {
+    await definition.beforeUpdate?.(em, record, values)
+    Object.assign(record, values)
+    record.updatedAt = new Date()
+  }
+
+  const softDelete = async (em: EntityManager, record: TEntity) => {
+    await withAtomicFlush(
+      em,
+      [
+        async () => {
+          await definition.beforeDelete?.(em, record)
+          record.deletedAt = new Date()
+          record.updatedAt = new Date()
+        },
+      ],
+      { transaction: true }
+    )
+  }
+
   const logBase = async (label: Label, snapshot: Snapshot) => {
     const { translate } = await resolveTranslations()
     return {
@@ -146,10 +174,7 @@ export function registerScopedRecordCommands<TEntity extends ScopedRecord, TCrea
       const em = entityManagerOf(ctx)
       const record = await find(em, after.id, after)
       if (!record) return
-      await definition.beforeDelete?.(em, record)
-      record.deletedAt = new Date()
-      record.updatedAt = new Date()
-      await em.flush()
+      await softDelete(em, record)
     },
   }
 
@@ -164,10 +189,7 @@ export function registerScopedRecordCommands<TEntity extends ScopedRecord, TCrea
       const input = parse(definition.updateSchema, rawInput) as Record<string, unknown> & { id: string }
       const em = entityManagerOf(ctx)
       const record = await findInScope(em, ctx, input.id)
-      for (const field of fields) {
-        if (input[field] !== undefined) Object.assign(record, { [field]: input[field] })
-      }
-      record.updatedAt = new Date()
+      await assign(em, record, valuesOf(input))
       await flushOrConflict(em, definition.errors.duplicate)
       return { id: record.id }
     },
@@ -193,8 +215,7 @@ export function registerScopedRecordCommands<TEntity extends ScopedRecord, TCrea
       const em = entityManagerOf(ctx)
       const record = await find(em, before.id, before, true)
       if (!record) return
-      for (const field of fields) Object.assign(record, { [field]: before[field] })
-      record.updatedAt = new Date()
+      await assign(em, record, valuesOf(before))
       await flushOrConflict(em, definition.errors.duplicate)
     },
   }
@@ -213,10 +234,7 @@ export function registerScopedRecordCommands<TEntity extends ScopedRecord, TCrea
       if (!input?.id) throw bookingsErrors.idRequired()
       const em = entityManagerOf(ctx)
       const record = await findInScope(em, ctx, input.id)
-      await definition.beforeDelete?.(em, record)
-      record.deletedAt = new Date()
-      record.updatedAt = new Date()
-      await em.flush()
+      await softDelete(em, record)
       return { id: record.id }
     },
     buildLog: async ({ snapshots }) => {

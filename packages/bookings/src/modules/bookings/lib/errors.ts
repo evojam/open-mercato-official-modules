@@ -46,10 +46,28 @@ export const bookingsErrors = {
   settingsConflict: () => new CrudHttpError(409, { error: 'bookings.settings.errors.conflict', code: 'settings_conflict' }),
   targetInUse: (openBookings: number) =>
     new CrudHttpError(409, { error: 'bookings.targets.errors.inUse', code: 'target_in_use', details: { openBookings } }),
+  targetZoneLocked: (openBookings: number) =>
+    new CrudHttpError(409, {
+      error: 'bookings.targets.errors.zoneLocked',
+      code: 'target_zone_locked',
+      details: { openBookings },
+    }),
   bookingConflict: (conflicts: unknown[]) =>
     new CrudHttpError(409, { error: 'bookings.bookings.errors.conflict', code: 'booking_conflict', details: { conflicts } }),
   subjectInactive: (subjectIds: string[]) =>
     new CrudHttpError(400, { error: 'bookings.bookings.errors.subjectInactive', code: 'subject_inactive', details: { subjectIds } }),
+  invalidTransition: (from: string, to: string) =>
+    new CrudHttpError(422, {
+      error: 'bookings.bookings.errors.invalidTransition',
+      code: 'invalid_transition',
+      details: { from, to },
+    }),
+  bookingClosed: (status: string) =>
+    new CrudHttpError(422, { error: 'bookings.bookings.errors.closed', code: 'booking_closed', details: { status } }),
+  bookingNotPlaced: () =>
+    new CrudHttpError(422, { error: 'bookings.bookings.errors.notPlaced', code: 'booking_not_placed' }),
+  bookingAlreadyPlaced: () =>
+    new CrudHttpError(422, { error: 'bookings.bookings.errors.alreadyPlaced', code: 'booking_placed' }),
   categoryInUse: (subjects: number, exceptions: number) =>
     new CrudHttpError(409, {
       error: 'bookings.categories.errors.inUse',

@@ -1,5 +1,5 @@
 import type { TranslateFn } from '@open-mercato/shared/lib/i18n/context'
-import { presentTimeline } from '../../components/timeline/timeline.presenter'
+import { barId, parseBarId, presentTimeline } from '../../components/timeline/timeline.presenter'
 import type { TimelineBarDto, TimelineReadDto } from '../../services/timeline/timeline-read.service'
 
 const t: TranslateFn = (key, fallbackOrParams, params) => {
@@ -113,5 +113,17 @@ describe('presentTimeline', () => {
 
     expect(view.bars[0].tone).toBe('done')
     expect(view.unavailability[0]).toMatchObject({ label: 'Unavailable', conflict: false })
+  })
+})
+
+describe('parseBarId', () => {
+  it('gives back the booking and subject a bar id was built from', () => {
+    expect(parseBarId(barId({ bookingId: 'b1', subjectId: 's1' }))).toEqual({ bookingId: 'b1', subjectId: 's1' })
+  })
+
+  it('refuses ids that are not a bar', () => {
+    expect(parseBarId('w1')).toBeNull()
+    expect(parseBarId(':s1')).toBeNull()
+    expect(parseBarId('b1:')).toBeNull()
   })
 })

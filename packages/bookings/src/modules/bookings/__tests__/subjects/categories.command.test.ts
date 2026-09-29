@@ -36,6 +36,9 @@ function fakeEm(categories: BookingSubjectCategory[], usage: Usage = {}) {
       categories.push(row)
     }),
     flush: jest.fn(async () => undefined),
+    begin: jest.fn(async () => undefined),
+    commit: jest.fn(async () => undefined),
+    rollback: jest.fn(async () => undefined),
   }
   return em
 }

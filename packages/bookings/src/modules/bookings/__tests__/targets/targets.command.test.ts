@@ -13,6 +13,10 @@ const SCOPE = { tenantId: TENANT, organizationId: ORG }
 jest.mock('@open-mercato/shared/lib/i18n/server', () => ({
   resolveTranslations: async () => ({ translate: (_key: string, fallback?: string) => fallback ?? _key }),
 }))
+jest.mock('../../services/bookings/subject-lock', () => ({
+  lockSubjects: jest.fn(async () => undefined),
+  lockTarget: jest.fn(async () => undefined),
+}))
 
 type Store = { settings: BookingsSettings | null; targets: BookingTarget[]; openBookings?: number }
 
@@ -54,6 +58,9 @@ function fakeEm(store: Store, flushError?: unknown) {
     flush: jest.fn(async () => {
       if (flushError) throw flushError
     }),
+    begin: jest.fn(async () => undefined),
+    commit: jest.fn(async () => undefined),
+    rollback: jest.fn(async () => undefined),
   }
   return em
 }
@@ -167,6 +174,38 @@ describe('bookings.targets.update and delete', () => {
     expect(error.status).toBe(409)
     expect(error.body).toMatchObject({ code: 'target_in_use', details: { openBookings: 2 } })
     expect(existing.deletedAt).toBeNull()
+  })
+
+  it('refuses to change the time zone while placed bookings would shift with it', async () => {
+    const existing = target({ timeZone: 'Europe/Warsaw' })
+    const em = fakeEm({ settings: settings(), targets: [existing], openBookings: 3 })
+
+    const error = await rejection(
+      bookingTargetCommands.update.execute({ ...SCOPE, id: existing.id, timeZone: 'America/New_York' }, ctxFor(em))
+    )
+
+    expect(error.status).toBe(409)
+    expect(error.body).toMatchObject({ code: 'target_zone_locked', details: { openBookings: 3 } })
+    expect(existing.timeZone).toBe('Europe/Warsaw')
+  })
+
+  it('still lets the name change and the same zone be resent while bookings are placed', async () => {
+    const existing = target({ name: 'Old', timeZone: 'Europe/Warsaw' })
+    const em = fakeEm({ settings: settings(), targets: [existing], openBookings: 3 })
+
+    await bookingTargetCommands.update.execute({ ...SCOPE, id: existing.id, name: 'New', timeZone: 'Europe/Warsaw' }, ctxFor(em))
+
+    expect(existing).toMatchObject({ name: 'New', timeZone: 'Europe/Warsaw' })
+    expect(em.count).not.toHaveBeenCalled()
+  })
+
+  it('changes the time zone freely once nothing is placed on it', async () => {
+    const existing = target({ timeZone: 'Europe/Warsaw' })
+    const em = fakeEm({ settings: settings(), targets: [existing], openBookings: 0 })
+
+    await bookingTargetCommands.update.execute({ ...SCOPE, id: existing.id, timeZone: 'Europe/Kyiv' }, ctxFor(em))
+
+    expect(existing.timeZone).toBe('Europe/Kyiv')
   })
 
   it('maps a unique violation to 409', async () => {

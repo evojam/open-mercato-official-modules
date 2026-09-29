@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { CheckboxField } from '@open-mercato/ui/primitives/checkbox-field'
 import { DateRangePicker } from '@open-mercato/ui/primitives/date-range-picker'
@@ -22,6 +22,7 @@ export type TimelineHeaderLabels = {
   conflictsOnly: string
   hideUnavailable: string
   newBooking: string
+  editBooking: string
 }
 
 export type TimelineHeaderProps = {
@@ -34,6 +35,8 @@ export type TimelineHeaderProps = {
   onFiltersChange: (patch: Partial<TimelineFilters>) => void
   canCreate: boolean
   onCreate: () => void
+  canEdit: boolean
+  onEdit: () => void
 }
 
 // The picker speaks local Date objects; only their calendar fields are read, never an instant.
@@ -56,6 +59,8 @@ export function TimelineHeader({
   onFiltersChange,
   canCreate,
   onCreate,
+  canEdit,
+  onEdit,
 }: TimelineHeaderProps) {
   return (
     <div className="shrink-0">
@@ -109,6 +114,11 @@ export function TimelineHeader({
 
         <div className="ml-auto flex items-center gap-2.5">
           <span className="whitespace-nowrap text-xs text-muted-foreground">{labels.rowCount}</span>
+          {canEdit ? (
+            <Button variant="outline" onClick={onEdit}>
+              <Pencil className="size-4" /> {labels.editBooking}
+            </Button>
+          ) : null}
           {canCreate ? (
             <Button onClick={onCreate}>
               <Plus className="size-4" /> {labels.newBooking}

@@ -265,6 +265,8 @@ packages/bookings/src/
 ├── index.ts                  package barrel: export { metadata }
 ├── lib/                      PUBLIC and pure — the purity rule. Imported as
 │   │                         @open-mercato/bookings/lib/<block>
+│   ├── booking-card/         the card a booking is shown as: presenter → view model, the
+│   │                         actions it offers, problem names; the React card reads the view model
 │   ├── pure-engine/          conflicts, working days, coverage gap — *.rule.ts, no zones
 │   ├── time/                 date-fns.adapter.ts (the only date-library import), types.ts,
 │   │                         day-ranges.ts (instant → dates in the owner's zone)

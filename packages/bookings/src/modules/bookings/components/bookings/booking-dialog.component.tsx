@@ -24,6 +24,7 @@ import { UnavailabilityForm } from '../unavailability/unavailability-form.compon
 import { isDirty, planBookingSave, windowOf } from './booking-dialog.presenter'
 import type { BookingFormOrigin, BookingFormValues, BookingSaveStep } from './booking-dialog.presenter'
 import { BookingStatusControl } from './booking-status-control.component'
+import { useBookingStatusChange } from './use-booking-status-change.hook'
 import { useConflictPreview } from './use-conflict-preview.hook'
 
 type Option = { id: string; name: string }
@@ -101,6 +102,7 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
   const locale = useLocale()
   const { organizationId, tenantId } = useOrganizationScopeDetail()
   const { confirm, ConfirmDialogElement } = useConfirmDialog()
+  const { changeStatus: changeBookingStatus, ConfirmDialogElement: StatusConfirmElement } = useBookingStatusChange()
   const [kind, setKind] = React.useState<ComposerKind>('booking')
   const [unavailabilityDirty, setUnavailabilityDirty] = React.useState(false)
   const [targets, setTargets] = React.useState<Option[]>([])
@@ -149,12 +151,11 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
           editing ? apiCall<{ items: BookingItem[] }>(`${BOOKINGS_API_PATHS.bookings}?id=${editing}`) : Promise.resolve(null),
         ])
         if (stale) return
+        const subjectOptions = subjectsCall.ok
+          ? (subjectsCall.result?.items ?? []).map(({ id, name, categoryId: category }) => ({ id, name, categoryId: category ?? null }))
+          : []
         setTargets(targetsCall.ok ? optionsOf(targetsCall.result?.items) : [])
-        setSubjects(
-          subjectsCall.ok
-            ? (subjectsCall.result?.items ?? []).map(({ id, name, categoryId: category }) => ({ id, name, categoryId: category ?? null }))
-            : []
-        )
+        setSubjects(subjectOptions)
         setCategories(categoriesCall.ok ? optionsOf(categoriesCall.result?.items) : [])
         if (!targetsCall.ok || !subjectsCall.ok || !categoriesCall.ok) {
           loadFailed('bookings.bookings.errors.optionsFailed', 'Failed to load targets or subjects.')
@@ -170,6 +171,7 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
         setBooking(item)
         setOrigin(loaded)
         setValues(loaded)
+        setCategoryId(subjectOptions.find((subject) => subject.id === loaded.subjectId)?.categoryId ?? null)
       } catch {
         if (!stale) loadFailed('bookings.bookings.errors.optionsFailed', 'Failed to load targets or subjects.')
       } finally {
@@ -319,26 +321,12 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
 
   const changeStatus = async (next: BookingStatus) => {
     if (busy || !editing) return
-    if (next === 'cancelled') {
-      const cancel = await confirm({
-        title: t('bookings.bookings.form.cancelTitle', 'Cancel this booking?'),
-        text: t('bookings.bookings.form.cancelText', 'The subject becomes free on these days. You can undo it afterwards.'),
-        confirmText: t('bookings.bookings.form.cancelConfirm', 'Cancel booking'),
-        variant: 'destructive',
-      })
-      if (!cancel) return
-    }
     setSaving(true)
     setRejected(null)
     try {
-      const call = await post(BOOKINGS_API_PATHS.bookingActions.status, 'POST', { id: editing, status: next })
-      if (!call.ok || !call.result) return reportFailure(call.result as ErrorBody | null)
-      reportSuccess(
-        call.result as BookingWriteResult,
-        t('bookings.bookings.messages.statusChanged', 'Status changed to {status}.', {
-          status: t(`bookings.bookings.status.${next}`, next),
-        })
-      )
+      const change = await changeBookingStatus(editing, next)
+      if (!change) return
+      if (!change.ok) return reportFailure(change.body as ErrorBody | null)
       onSaved()
       onOpenChange(false)
     } finally {
@@ -585,6 +573,7 @@ export function BookingDialog({ open, mode, today, calendar, canWriteUnavailabil
         </DialogContent>
       </Dialog>
       {ConfirmDialogElement}
+      {StatusConfirmElement}
     </>
   )
 }

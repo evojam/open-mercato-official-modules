@@ -42,6 +42,8 @@ export type TimelineBarDto = DayRange & {
   targetName: string
   targetColor: string | null
   status: BookingStatus
+  durationValue: number
+  expectedStartOn: IsoDate
   note: string | null
   conflicts: Conflict[]
 }
@@ -105,6 +107,8 @@ function barsOf(participants: BookingParticipant[]): TimelineBarDto[] {
         targetName: booking.target.name,
         targetColor: booking.target.color ?? null,
         status: booking.status,
+        durationValue: Number(booking.durationValue),
+        expectedStartOn: booking.expectedStartOn,
         note: booking.note ?? null,
         conflicts: [],
       },

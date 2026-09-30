@@ -8,7 +8,7 @@ import { bookingDays } from '../../../../lib/time/day-ranges'
 import type { BookingWriteResult } from '../../commands/shared/booking-write.commands'
 import { Booking, BookingParticipant, BookingTarget } from '../../data/entities'
 import { bookingCreateSchema, bookingUpdateSchema } from '../../data/validators'
-import { crudListQuerySchema } from '../crud-list'
+import { crudListQuerySchema, plainListItems } from '../crud-list'
 import { bookingWriteResponseSchema, createBookingsCrudOpenApi, createPagedListResponseSchema } from '../openapi'
 
 const routeMetadata = {
@@ -41,8 +41,8 @@ function instantOf(value: unknown): Date | null {
   return null
 }
 
-async function decorateBookings(payload: { items?: BookingRow[] }, em: EntityManager): Promise<void> {
-  const items = payload.items ?? []
+async function decorateBookings(payload: { items?: unknown[] }, em: EntityManager): Promise<void> {
+  const items = plainListItems<BookingRow>(payload)
   const ids = items.map((row) => row.id).filter((id): id is string => typeof id === 'string')
   const targetIds = [...new Set(items.map(targetIdOf).filter((id): id is string => id !== null))]
   const [participants, targets] = await Promise.all([

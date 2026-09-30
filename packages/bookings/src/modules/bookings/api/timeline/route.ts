@@ -136,6 +136,8 @@ const timelineSchema = z.object({
       targetName: z.string(),
       targetColor: z.string().nullable(),
       status: z.enum(BOOKING_STATUSES),
+      durationValue: z.number(),
+      expectedStartOn: z.string(),
       note: z.string().nullable(),
       conflicts: z.array(conflictSchema),
     })

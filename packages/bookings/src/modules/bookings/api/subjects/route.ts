@@ -7,7 +7,7 @@ import { BookingSubject, BookingSubjectCategory } from '../../data/entities'
 import { bookingSubjectAddSchema, bookingSubjectUpdateSchema } from '../../data/validators'
 import { SUBJECT_KINDS } from '../../services/subjects/providers/provider'
 import { getSubjectProvider } from '../../services/subjects/providers/registry'
-import { crudListQuerySchema, nameAndIdFilters, sortItemsByName } from '../crud-list'
+import { crudListQuerySchema, nameAndIdFilters, plainListItems, sortItemsByName } from '../crud-list'
 import { createBookingsCrudOpenApi, createPagedListResponseSchema, defaultOkResponseSchema } from '../openapi'
 
 const routeMetadata = {
@@ -35,8 +35,8 @@ function categoryIdOf(row: SubjectRow): string | null {
   return null
 }
 
-async function decorateSubjects(payload: { items?: SubjectRow[] }, em: EntityManager, tenantId: string | null): Promise<void> {
-  const items = payload.items ?? []
+async function decorateSubjects(payload: { items?: unknown[] }, em: EntityManager, tenantId: string | null): Promise<void> {
+  const items = plainListItems<SubjectRow>(payload)
   const categoryIds = [...new Set(items.map(categoryIdOf).filter((id): id is string => id !== null))]
   const organizationIds = [...new Set(items.map((row) => String(row.organizationId ?? '')).filter(Boolean))]
   const categories =

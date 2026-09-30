@@ -31,6 +31,8 @@ function participant(bookingId: string, subjectId: string, startAt: string, endA
       startAt: new Date(startAt),
       endAt: new Date(endAt),
       status,
+      durationValue: '2.50',
+      expectedStartOn: '2026-10-05',
       note: null,
       target: warsawSite,
     },
@@ -70,6 +72,7 @@ describe('assembleTimeline', () => {
     ])
     expect(view.bars.map((bar) => bar.conflicts.map((conflict) => conflict.kind))).toEqual([['overlap'], ['overlap']])
     expect(view.bars[0].conflicts[0]).toMatchObject({ withBookingId: 'b2', withTargetId: 'target-1', withTargetName: 'Site A' })
+    expect(view.bars[0]).toMatchObject({ durationValue: 2.5, expectedStartOn: '2026-10-05' })
   })
 
   it('reports a clash with unavailability and never counts a closed booking', () => {

@@ -23,6 +23,17 @@ export function nameAndIdFilters(query: CrudListQuery): Record<string, unknown> 
   return filters
 }
 
+type Serializable = { toJSON?: () => unknown }
+
+export function plainListItems<T extends Record<string, unknown>>(payload: { items?: unknown[] }): T[] {
+  const items = (payload.items ?? []).map((item) => {
+    const serializable = item as Serializable | null
+    return (typeof serializable?.toJSON === 'function' ? serializable.toJSON() : item) as T
+  })
+  payload.items = items
+  return items
+}
+
 export function sortItemsByName(payload: { items?: unknown[] }): void {
   if (!Array.isArray(payload.items)) return
   payload.items.sort((a, b) =>

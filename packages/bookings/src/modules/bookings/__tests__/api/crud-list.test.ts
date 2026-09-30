@@ -1,4 +1,4 @@
-import { crudListQuerySchema, nameAndIdFilters, sortItemsByName } from '../../api/crud-list'
+import { crudListQuerySchema, nameAndIdFilters, plainListItems, sortItemsByName } from '../../api/crud-list'
 
 const ID_A = '6f1c2b0e-1c7a-4a52-9d3e-5b8f0d1a2c3d'
 
@@ -25,6 +25,20 @@ describe('nameAndIdFilters', () => {
 
   it('rejects an id that is not a uuid instead of listing everything', () => {
     expect(() => crudListQuerySchema.parse({ id: 'first' })).toThrow()
+  })
+})
+
+describe('plainListItems', () => {
+  it('turns ORM entities into plain rows, so fields a list hook adds survive serialization', () => {
+    const entity = { toJSON: () => ({ id: ID_A, target: 'target-1' }) }
+    const payload: { items?: unknown[] } = { items: [entity, { id: 'plain' }] }
+
+    const items = plainListItems<Record<string, unknown>>(payload)
+    Object.assign(items[0], { targetId: 'target-1' })
+
+    expect(JSON.parse(JSON.stringify(payload))).toEqual({
+      items: [{ id: ID_A, target: 'target-1', targetId: 'target-1' }, { id: 'plain' }],
+    })
   })
 })
 
